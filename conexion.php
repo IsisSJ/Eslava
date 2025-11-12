@@ -1,15 +1,16 @@
 <?php
-// conexion.php - Versión segura
+// conexion.php - conexión a Clever Cloud MySQL
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "flores_chinampa";
+$servername = "bc8i4pda2kn2fqs150qm-mysql.services.clever-cloud.com";
+$username   = "uo5qglcqiyhjhqot";
+$password   = "wSlvgtI1vH86LAydhriK";
+$database   = "bc8i4pda2kn2fqs150qm";
+$port       = 3306;
 
 // Crear conexión
-$conn = new mysqli($servername, $username, $password, $database);
+$conn = new mysqli($servername, $username, $password, $database, $port);
 
 // Verificar conexión
 if ($conn->connect_error) {
@@ -18,19 +19,17 @@ if ($conn->connect_error) {
         <p><strong>Mensaje:</strong> " . $conn->connect_error . "</p>
         <p><strong>Verifica:</strong></p>
         <ul>
-            <li>Que XAMPP esté ejecutándose</li>
-            <li>Que MySQL esté activo</li>
-            <li>Que la base de datos 'flores_chinampa' exista</li>
+            <li>Que los datos de Clever Cloud sean correctos</li>
+            <li>Que la base esté activa</li>
         </ul>
     </div>");
 }
 
-// Establecer charset
 if (!$conn->set_charset("utf8mb4")) {
     die("Error cargando el conjunto de caracteres utf8mb4: " . $conn->error);
 }
 
-// Función para debug
+// Función para depurar (opcional)
 function debug_db($mensaje) {
     error_log("DEBUG DB: " . $mensaje);
 }
