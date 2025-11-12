@@ -4,7 +4,7 @@ include_once("conexion.php");
 
 // CONFIGURACIÓN PARA RENDER
 $CONFIG = [
-    'dominio_produccion' => 'https://eslava-3.onrender.com', // ← Tu URL real de Render
+    'dominio_produccion' => 'https://eslava-3.onrender.com',
     'modo_desarrollo' => false
 ];
 
@@ -14,45 +14,55 @@ if (!isset($_SESSION['usuario']) || $_SESSION['rol'] !== 'admin') {
     exit();
 }
 
-// Función para generar URL correcta del producto - VERSIÓN MEJORADA
+// Función para generar URL correcta del producto - VERSIÓN CORREGIDA
 function generarURLProducto($articulo_id) {
     global $CONFIG;
     
-    // DEBUG: Verificar entorno
-    error_log("🔍 Generando URL para producto $articulo_id");
-    error_log("🔍 Dominio configurado: " . $CONFIG['dominio_produccion']);
-    error_log("🔍 Modo desarrollo: " . ($CONFIG['modo_desarrollo'] ? 'true' : 'false'));
-    error_log("🔍 HTTP_HOST: " . ($_SERVER['HTTP_HOST'] ?? 'No definido'));
-    
     // SIEMPRE usar el dominio de producción en Render
-    // Render tiene variables de entorno específicas
     if (isset($_SERVER['RENDER']) || 
-        $_SERVER['HTTP_HOST'] === 'eslava-3.onrender.com' ||
+        ($_SERVER['HTTP_HOST'] ?? '') === 'eslava-3.onrender.com' ||
         !$CONFIG['modo_desarrollo']) {
         
-        $url = $CONFIG['dominio_produccion'] . "/ver_producto.php?id=" . $articulo_id;
-        error_log("✅ URL generada (Producción): " . $url);
-        return $url;
+        return $CONFIG['dominio_produccion'] . "/ver_producto.php?id=" . $articulo_id;
     }
     
-    // Solo para desarrollo local (XAMPP, localhost, etc.)
+    // Solo para desarrollo local
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'];
-    
-    // Limpiar el host (remover puerto si existe)
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $host = preg_replace('/:\d+$/', '', $host);
     
     // Evitar localhost, 127.0.0.1, ::1
     if ($host === 'localhost' || $host === '127.0.0.1' || $host === '::1') {
-        error_log("⚠️  Detectado localhost, forzando dominio de producción");
         return $CONFIG['dominio_produccion'] . "/ver_producto.php?id=" . $articulo_id;
     }
     
-    $base_path = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
-    $url = $protocol . "://" . $host . $base_path . "/ver_producto.php?id=" . $articulo_id;
+    $base_path = rtrim(dirname($_SERVER['PHP_SELF'] ?? ''), '/\\');
+    return $protocol . "://" . $host . $base_path . "/ver_producto.php?id=" . $articulo_id;
+}
+
+// TEMPORAL: Regenerar todos los QR (ejecutar una sola vez)
+if (isset($_GET['regenerar_todos_qr'])) {
+    $sql = "SELECT id, nombre FROM articulos WHERE qr_code IS NOT NULL";
+    $stmt = $conn->query($sql);
+    $articulos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    error_log("🔧 URL generada (Desarrollo): " . $url);
-    return $url;
+    $regenerados = 0;
+    foreach ($articulos as $articulo) {
+        $articulo_id = $articulo['id'];
+        $qr_url = generarURLProducto($articulo_id);
+        $qr_code_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($qr_url);
+        
+        $update_stmt = $conn->prepare("UPDATE articulos SET qr_code = ? WHERE id = ?");
+        $update_stmt->execute([$qr_code_url, $articulo_id]);
+        $regenerados++;
+        
+        error_log("✅ QR regenerado para: " . $articulo['nombre'] . " - URL: " . $qr_url);
+    }
+    
+    $_SESSION['mensaje'] = "✅ " . $regenerados . " QR han sido regenerados con las nuevas URLs de Render";
+    $_SESSION['tipo_mensaje'] = "success";
+    header('Location: gestion_articulos.php');
+    exit();
 }
 
 // Procesar mensajes
@@ -86,11 +96,7 @@ if (isset($_GET['generar_qr'])) {
         if ($update_stmt->execute([$qr_code_url, $articulo_id])) {
             $_SESSION['mensaje'] = "✅ Código QR generado para: " . $articulo['nombre'];
             $_SESSION['tipo_mensaje'] = "success";
-            
-            // Mostrar URL generada en modo debug
-            if (isset($_GET['debug'])) {
-                $_SESSION['mensaje'] .= "<br>🌐 URL: " . $qr_url;
-            }
+            $_SESSION['mensaje'] .= "<br>🌐 Nueva URL: " . $qr_url;
         } else {
             $_SESSION['mensaje'] = "❌ Error al generar QR";
             $_SESSION['tipo_mensaje'] = "error";
@@ -217,6 +223,11 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
             border-radius: 8px;
             margin-bottom: 15px;
         }
+        .regenerar-btn {
+            background: linear-gradient(45deg, #ffa726, #fb8c00);
+            border: none;
+            color: white;
+        }
         @media (max-width: 768px) {
             .container {
                 margin-top: 20px;
@@ -244,9 +255,6 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
                 <a href="nuevo_articulo.php" class="btn btn-success">
                     <i class="fas fa-plus me-2"></i>Nuevo Artículo
                 </a>
-                <a href="gestion_usuarios.php" class="btn btn-outline-primary">
-                    <i class="fas fa-users me-2"></i>Usuarios
-                </a>
             </div>
         </div>
 
@@ -256,6 +264,7 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
                 <div class="col-md-8">
                     <h5 class="mb-1"><i class="fas fa-cloud me-2"></i>Configurado para Render</h5>
                     <p class="mb-0">Dominio: <strong><?php echo $CONFIG['dominio_produccion']; ?></strong></p>
+                    <small>Los QR ahora apuntan a esta URL correctamente</small>
                 </div>
                 <div class="col-md-4 text-end">
                     <span class="badge bg-success fs-6">
@@ -263,6 +272,16 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
                     </span>
                 </div>
             </div>
+        </div>
+
+        <!-- Botón para regenerar QR -->
+        <div class="text-center mb-4">
+            <a href="gestion_articulos.php?regenerar_todos_qr=1" 
+               class="btn regenerar-btn"
+               onclick="return confirm('¿Regenerar TODOS los códigos QR con las nuevas URLs de Render?\n\nEsto actualizará todos los QR existentes.')">
+                <i class="fas fa-sync-alt me-2"></i>Regenerar Todos los QR
+            </a>
+            <small class="d-block text-muted mt-1">Usa este botón para corregir los QR que muestran "::1"</small>
         </div>
 
         <!-- Mensajes -->
@@ -395,7 +414,7 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
                                              class="qr-img"
                                              data-bs-toggle="tooltip" 
                                              data-bs-title="Clic para ver QR completo"
-                                             onclick="verQRCompleto('<?php echo $row['qr_code']; ?>', '<?php echo htmlspecialchars($row['nombre']); ?>')">
+                                             onclick="verQRCompleto('<?php echo $row['qr_code']; ?>', '<?php echo htmlspecialchars($row['nombre']); ?>', <?php echo $row['id']; ?>)">
                                     <?php else: ?>
                                         <a href="gestion_articulos.php?generar_qr=<?php echo $row['id']; ?>" 
                                            class="btn btn-outline-success btn-sm"
@@ -440,7 +459,7 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
                                         <?php else: ?>
                                             <button type="button" 
                                                     class="btn btn-success btn-sm btn-action"
-                                                    onclick="verQRCompleto('<?php echo $row['qr_code']; ?>', '<?php echo htmlspecialchars($row['nombre']); ?>')"
+                                                    onclick="verQRCompleto('<?php echo $row['qr_code']; ?>', '<?php echo htmlspecialchars($row['nombre']); ?>', <?php echo $row['id']; ?>)"
                                                     data-bs-toggle="tooltip"
                                                     data-bs-title="Ver código QR completo">
                                                 <i class="fas fa-eye"></i> QR
@@ -542,7 +561,7 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
                     <div class="alert alert-info">
                         <small>
                             <i class="fas fa-info-circle me-1"></i>
-                            URL: <?php echo $CONFIG['dominio_produccion']; ?>/ver_producto.php?id=PRODUCTO_ID
+                            URL: <span id="qrUrlInfo"></span>
                         </small>
                     </div>
                 </div>
@@ -582,9 +601,10 @@ $qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
     }
 
     // Función para ver QR completo
-    function verQRCompleto(src, nombre) {
+    function verQRCompleto(src, nombre, id) {
         document.getElementById('qrCompleto').src = src;
         document.getElementById('qrModalTitle').textContent = 'QR: ' + nombre;
+        document.getElementById('qrUrlInfo').textContent = '<?php echo $CONFIG['dominio_produccion']; ?>/ver_producto.php?id=' + id;
         new bootstrap.Modal(document.getElementById('qrModal')).show();
     }
 
