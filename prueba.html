@@ -1,0 +1,13 @@
+<?php
+echo "<h1>✅ PHP FUNCIONANDO</h1>";
+echo "<p>Servidor: " . $_SERVER['SERVER_SOFTWARE'] . "</p>";
+echo "<p>PHP Version: " . phpversion() . "</p>";
+echo "<p>Archivos en directorio:</p>";
+
+$files = scandir('.');
+foreach ($files as $file) {
+    if ($file != '.' && $file != '..') {
+        echo "- $file<br>";
+    }
+}
+?>
