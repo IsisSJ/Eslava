@@ -1,18 +1,24 @@
 # Imagen base con PHP y Apache
 FROM php:8.2-apache
 
-# Copiar el contenido del proyecto al contenedor
+# Instalar extensiones MySQL necesarias
+RUN docker-php-ext-install mysqli pdo pdo_mysql
+
+# Habilitar mod_rewrite de Apache
+RUN a2enmod rewrite
+
+# Configurar Apache para Render
+COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
+
+# Copiar la aplicación
 COPY . /var/www/html/
 
-# Configurar Apache para escuchar el puerto dinámico de Render
-RUN sed -i 's/80/${PORT}/g' /etc/apache2/ports.conf && \
-    sed -i 's/:80/:${PORT}/g' /etc/apache2/sites-available/000-default.conf
+# Establecer permisos
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# Añadir ServerName para evitar advertencias
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+# Puerto que Render usa
+EXPOSE 10000
 
-# Exponer el puerto que Render asignará
-EXPOSE ${PORT}
-
-# Mantener Apache corriendo en primer plano
 CMD ["apache2-foreground"]
