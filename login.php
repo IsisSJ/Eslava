@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($user) {
-            // DEBUG: Mostrar información de la contraseña (eliminar después)
-            error_log("Login attempt - User: " . $user['nombre_usuario'] . ", Hash: " . $user['password']);
+            // DEBUG: Mostrar información de la contraseña
+            error_log("Login attempt - User: " . $user['nombre_usuario'] . ", Rol: " . $user['rol']);
             
             if (password_verify($password, $user['password'])) {
                 // Login exitoso
@@ -34,8 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['rol'] = $user['rol'];
                 $_SESSION['user_id'] = $user['id'];
                 
-                // Redirigir según el rol
-                if ($user['rol'] === 'admin') {
+                // DEBUG
+                error_log("✅ Login exitoso - Redirigiendo según rol: " . $user['rol']);
+                
+                // Redirigir según el rol CORREGIDO
+                if ($user['rol'] === 'administrador') {  // ← CAMBIADO de 'admin' a 'administrador'
                     header('Location: gestion_articulos.php');
                 } else {
                     header('Location: index.php');
@@ -54,7 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Si hay error, guardarlo en sesión
     if (isset($error)) {
         $_SESSION['error_login'] = $error;
-        // Recargar la página para mostrar el error
         header('Location: login.php');
         exit();
     }
@@ -153,13 +155,13 @@ if (isset($_SESSION['error_login'])) {
                         </a>
                     </div>
 
-                    <!-- Información de prueba -->
+                    <!-- Información de prueba ACTUALIZADA -->
                     <div class="mt-3 p-3 bg-light rounded">
                         <small class="text-muted">
                             <strong><i class="fas fa-info-circle me-1"></i>Para probar:</strong><br>
-                            • Usuario: <strong>admi</strong> | Contraseña: <strong>password</strong> (rol admin)<br>
+                            • Usuario: <strong>admi</strong> | Contraseña: <strong>password</strong> (rol administrador)<br>
                             • Usuario: <strong>Perro</strong> | Contraseña: <strong>password</strong> (rol cliente)<br>
-                            <em>Si no funcionan, usa cualquier contraseña y registra un usuario nuevo</em>
+                            <em>Si no funciona, verifica el rol en la base de datos</em>
                         </small>
                     </div>
                 </div>
@@ -183,28 +185,6 @@ if (isset($_SESSION['error_login'])) {
             passwordIcon.classList.add('fa-eye');
         }
     }
-
-    // Opcional: Permitir mostrar contraseña al mantener presionado
-    let showPasswordTimer;
-    const passwordToggle = document.querySelector('.password-toggle');
-    
-    passwordToggle.addEventListener('mousedown', function() {
-        showPasswordTimer = setTimeout(() => {
-            const passwordInput = document.getElementById('password');
-            const passwordIcon = document.getElementById('password-icon');
-            passwordInput.type = 'text';
-            passwordIcon.classList.remove('fa-eye');
-            passwordIcon.classList.add('fa-eye-slash');
-        }, 300);
-    });
-    
-    passwordToggle.addEventListener('mouseup', function() {
-        clearTimeout(showPasswordTimer);
-    });
-    
-    passwordToggle.addEventListener('mouseleave', function() {
-        clearTimeout(showPasswordTimer);
-    });
     </script>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
