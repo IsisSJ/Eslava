@@ -16,24 +16,22 @@ if ($articulo_id <= 0) {
     die("❌ Error: ID de producto inválido");
 }
 
-// Incrementar contador de visitas
-$update_visitas = $conn->prepare("UPDATE articulos SET visitas = visitas + 1 WHERE id = ?");
-$update_visitas->bind_param("i", $articulo_id);
-$update_visitas->execute();
-$update_visitas->close();
+try {
+    // Incrementar contador de visitas CON PDO
+    $update_visitas = $conn->prepare("UPDATE articulos SET visitas = visitas + 1 WHERE id = ?");
+    $update_visitas->execute([$articulo_id]);
 
-// Obtener información del artículo
-$stmt = $conn->prepare("SELECT id, nombre, precio, stock, descripcion, imagen_path, visitas FROM articulos WHERE id = ?");
-$stmt->bind_param("i", $articulo_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$articulo = $result->fetch_assoc();
+    // Obtener información del artículo CON PDO
+    $stmt = $conn->prepare("SELECT id, nombre, precio, stock, descripcion, imagen_path, visitas FROM articulos WHERE id = ?");
+    $stmt->execute([$articulo_id]);
+    $articulo = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$articulo) {
-    die("❌ Error: Producto no encontrado");
+    if (!$articulo) {
+        die("❌ Error: Producto no encontrado");
+    }
+} catch (PDOException $e) {
+    die("❌ Error de base de datos: " . $e->getMessage());
 }
-
-$stmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -61,7 +59,9 @@ $stmt->close();
     </style>
 </head>
 <body>
-    <div class="container">
+    <?php include('header.php'); ?>
+    
+    <div class="container" style="margin-top: 80px;">
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card product-card">
@@ -69,7 +69,7 @@ $stmt->close();
                         <div class="row">
                             <!-- Imagen del producto -->
                             <div class="col-md-6 text-center">
-                                <?php if (!empty($articulo['imagen_path']) && file_exists($articulo['imagen_path'])): ?>
+                                <?php if (!empty($articulo['imagen_path'])): ?>
                                     <img src="<?php echo $articulo['imagen_path']; ?>" 
                                          alt="<?php echo htmlspecialchars($articulo['nombre']); ?>" 
                                          class="img-fluid product-image">
@@ -86,7 +86,6 @@ $stmt->close();
                                 <nav aria-label="breadcrumb" class="mb-3">
                                     <ol class="breadcrumb">
                                         <li class="breadcrumb-item"><a href="index.php">Inicio</a></li>
-                                        <li class="breadcrumb-item"><a href="productos.php">Productos</a></li>
                                         <li class="breadcrumb-item active"><?php echo htmlspecialchars($articulo['nombre']); ?></li>
                                     </ol>
                                 </nav>
@@ -114,13 +113,13 @@ $stmt->close();
                                 <?php endif; ?>
                                 
                                 <div class="d-grid gap-2 d-md-flex">
-                                    <a href="productos.php" class="btn btn-outline-secondary btn-lg">
-                                        <i class="fas fa-arrow-left me-2"></i>Volver
+                                    <a href="index.php" class="btn btn-outline-secondary btn-lg">
+                                        <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
                                     </a>
                                     <?php if ($articulo['stock'] > 0): ?>
-                                        <a href="carrito.php?agregar=<?php echo $articulo['id']; ?>" class="btn btn-success btn-lg flex-fill">
+                                        <button class="btn btn-success btn-lg flex-fill" onclick="alert('Función de carrito próximamente')">
                                             <i class="fas fa-cart-plus me-2"></i>Agregar al Carrito
-                                        </a>
+                                        </button>
                                     <?php else: ?>
                                         <button class="btn btn-danger btn-lg flex-fill" disabled>
                                             <i class="fas fa-times me-2"></i>Agotado
@@ -135,6 +134,7 @@ $stmt->close();
                                         <li>Envío gratis en compras mayores a $500</li>
                                         <li>Tiempo de entrega: 2-3 días hábiles</li>
                                         <li>Solo entregas en CDMX y área metropolitana</li>
+                                        <li>Pago contra entrega</li>
                                     </ul>
                                 </div>
                             </div>
