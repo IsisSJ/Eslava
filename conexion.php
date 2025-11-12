@@ -1,19 +1,16 @@
 <?php
-// conexion.php - Conexión a TU Clever Cloud
+// conexion.php - Conexión con PDO
 $host = 'bc8i4pda2kn2fqs150qm-mysql.services.clever-cloud.com';
 $dbname = 'bc8i4pda2kn2fqs150qm'; 
 $username = 'uo5qglcqiyhjhqot';
-$password = 'wSlvgtI1vH86LAydhriK'; // 👈 HAZ CLIC EN 🔓 Y COPIA EL PASSWORD
+$password = 'wSlvgtI1vH86LAydhriK';
 
-// Crear conexión
-$conn = new mysqli($host, $username, $password, $dbname);
-
-// Verificar conexión
-if ($conn->connect_error) {
-    error_log("❌ Error de conexión: " . $conn->connect_error);
+try {
+    $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    error_log("✅ Conexión PDO exitosa a Clever Cloud");
+} catch(PDOException $e) {
+    error_log("❌ Error PDO: " . $e->getMessage());
     die("Error de conexión a la base de datos");
 }
-
-$conn->set_charset("utf8mb4");
-error_log("✅ Conexión exitosa a Clever Cloud");
 ?>

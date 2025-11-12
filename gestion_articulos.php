@@ -2,9 +2,9 @@
 session_start();
 include_once("conexion.php");
 
-// CONFIGURACIÓN PARA INFINITYFREE
+// CONFIGURACIÓN PARA RENDER
 $CONFIG = [
-    'dominio_produccion' => 'https://floreria.42web.io', // ← CAMBIA ESTO
+    'dominio_produccion' => 'https://eslava-3.onrender.com', // ← CAMBIA a tu URL de Render
     'modo_desarrollo' => false
 ];
 
@@ -14,7 +14,7 @@ if (!isset($_SESSION['usuario']) || $_SESSION['rol'] !== 'admin') {
     exit();
 }
 
-// Función para generar URL correcta del producto - INFINITYFREE
+// Función para generar URL correcta del producto
 function generarURLProducto($articulo_id) {
     global $CONFIG;
     
@@ -25,7 +25,7 @@ function generarURLProducto($articulo_id) {
         $base_path = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
         return $protocol . "://" . $host . $base_path . "/ver_producto.php?id=" . $articulo_id;
     } else {
-        // Producción InfinityFree
+        // Producción Render
         return $CONFIG['dominio_produccion'] . "/ver_producto.php?id=" . $articulo_id;
     }
 }
@@ -46,13 +46,11 @@ if (isset($_GET['generar_qr'])) {
     
     // Obtener información del artículo
     $stmt = $conn->prepare("SELECT id, nombre FROM articulos WHERE id = ?");
-    $stmt->bind_param("i", $articulo_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $articulo = $result->fetch_assoc();
+    $stmt->execute([$articulo_id]);
+    $articulo = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($articulo) {
-        // ✅ URL CORRECTA para InfinityFree
+        // ✅ URL CORRECTA para Render
         $qr_url = generarURLProducto($articulo_id);
         
         // Generar código QR usando API
@@ -60,9 +58,7 @@ if (isset($_GET['generar_qr'])) {
         
         // Guardar la URL del QR en la base de datos
         $update_stmt = $conn->prepare("UPDATE articulos SET qr_code = ? WHERE id = ?");
-        $update_stmt->bind_param("si", $qr_code_url, $articulo_id);
-        
-        if ($update_stmt->execute()) {
+        if ($update_stmt->execute([$qr_code_url, $articulo_id])) {
             $_SESSION['mensaje'] = "✅ Código QR generado para: " . $articulo['nombre'];
             $_SESSION['tipo_mensaje'] = "success";
             
@@ -71,12 +67,10 @@ if (isset($_GET['generar_qr'])) {
                 $_SESSION['mensaje'] .= "<br>🌐 URL: " . $qr_url;
             }
         } else {
-            $_SESSION['mensaje'] = "❌ Error al generar QR: " . $update_stmt->error;
+            $_SESSION['mensaje'] = "❌ Error al generar QR";
             $_SESSION['tipo_mensaje'] = "error";
         }
-        $update_stmt->close();
     }
-    $stmt->close();
     
     header('Location: gestion_articulos.php');
     exit();
@@ -88,26 +82,20 @@ if (isset($_GET['eliminar'])) {
     
     // Primero obtener información del artículo para el mensaje
     $stmt = $conn->prepare("SELECT nombre FROM articulos WHERE id = ?");
-    $stmt->bind_param("i", $articulo_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $articulo = $result->fetch_assoc();
+    $stmt->execute([$articulo_id]);
+    $articulo = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($articulo) {
         // Eliminar el artículo
         $delete_stmt = $conn->prepare("DELETE FROM articulos WHERE id = ?");
-        $delete_stmt->bind_param("i", $articulo_id);
-        
-        if ($delete_stmt->execute()) {
+        if ($delete_stmt->execute([$articulo_id])) {
             $_SESSION['mensaje'] = "✅ Artículo eliminado: " . $articulo['nombre'];
             $_SESSION['tipo_mensaje'] = "success";
         } else {
-            $_SESSION['mensaje'] = "❌ Error al eliminar artículo: " . $delete_stmt->error;
+            $_SESSION['mensaje'] = "❌ Error al eliminar artículo";
             $_SESSION['tipo_mensaje'] = "error";
         }
-        $delete_stmt->close();
     }
-    $stmt->close();
     
     header('Location: gestion_articulos.php');
     exit();
@@ -117,13 +105,23 @@ if (isset($_GET['eliminar'])) {
 $sql = "SELECT id, nombre, precio, stock, descripcion, imagen_path, qr_code, visitas, fecha_creacion 
         FROM articulos 
         ORDER BY visitas DESC, id DESC";
-$result = $conn->query($sql);
+$stmt = $conn->query($sql);
+$articulos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Estadísticas para los cards
-$total_articulos = $result->num_rows;
-$stock_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE stock > 0")->fetch_assoc()['count'];
-$total_visitas = $conn->query("SELECT SUM(visitas) as total FROM articulos")->fetch_assoc()['total'] ?: 0;
-$qr_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code IS NOT NULL")->fetch_assoc()['count'];
+$total_articulos = count($articulos);
+
+// Contar stock disponible
+$stock_stmt = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE stock > 0");
+$stock_count = $stock_stmt->fetch(PDO::FETCH_ASSOC)['count'];
+
+// Total visitas
+$visitas_stmt = $conn->query("SELECT SUM(visitas) as total FROM articulos");
+$total_visitas = $visitas_stmt->fetch(PDO::FETCH_ASSOC)['total'] ?: 0;
+
+// QR generados
+$qr_stmt = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code IS NOT NULL");
+$qr_count = $qr_stmt->fetch(PDO::FETCH_ASSOC)['count'];
 ?>
 
 <!DOCTYPE html>
@@ -227,11 +225,11 @@ $qr_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code 
             </div>
         </div>
 
-        <!-- Información de Configuración InfinityFree -->
+        <!-- Información de Configuración Render -->
         <div class="config-info">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h5 class="mb-1"><i class="fas fa-cloud me-2"></i>Configurado para InfinityFree</h5>
+                    <h5 class="mb-1"><i class="fas fa-cloud me-2"></i>Configurado para Render</h5>
                     <p class="mb-0">Dominio: <strong><?php echo $CONFIG['dominio_produccion']; ?></strong></p>
                 </div>
                 <div class="col-md-4 text-end">
@@ -302,7 +300,7 @@ $qr_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code 
                 </span>
             </div>
             <div class="card-body">
-                <?php if ($result->num_rows > 0): ?>
+                <?php if (count($articulos) > 0): ?>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
                         <thead class="table-dark">
@@ -317,7 +315,7 @@ $qr_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code 
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while($row = $result->fetch_assoc()): ?>
+                            <?php foreach($articulos as $row): ?>
                             <tr>
                                 <!-- ID -->
                                 <td class="align-middle">
@@ -349,7 +347,7 @@ $qr_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code 
                                 
                                 <!-- Imagen -->
                                 <td class="align-middle">
-                                    <?php if (!empty($row['imagen_path']) && file_exists($row['imagen_path'])): ?>
+                                    <?php if (!empty($row['imagen_path'])): ?>
                                         <img src="<?php echo $row['imagen_path']; ?>" 
                                              alt="<?php echo htmlspecialchars($row['nombre']); ?>" 
                                              class="table-img"
@@ -435,7 +433,7 @@ $qr_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code 
                                     </div>
                                 </td>
                             </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -574,26 +572,6 @@ $qr_count = $conn->query("SELECT COUNT(*) as count FROM articulos WHERE qr_code 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    }
-
-    // Función para búsqueda rápida (puedes implementar después)
-    function buscarProductos() {
-        const input = document.getElementById('buscarInput');
-        const filter = input.value.toUpperCase();
-        const table = document.querySelector('table');
-        const tr = table.getElementsByTagName('tr');
-
-        for (let i = 1; i < tr.length; i++) {
-            const td = tr[i].getElementsByTagName('td')[1]; // Columna de producto
-            if (td) {
-                const txtValue = td.textContent || td.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = '';
-                } else {
-                    tr[i].style.display = 'none';
-                }
-            }
-        }
     }
     </script>
 </body>

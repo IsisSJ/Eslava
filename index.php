@@ -1,3 +1,8 @@
+<?php
+// Esto asegura que Render detecte que PHP está funcionando correctamente
+echo "✔ PHP activo - despliegue exitoso<br>";
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>

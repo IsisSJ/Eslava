@@ -2,4 +2,4 @@
 include_once('conexion.php');
 
 // Por:
-include_once('conexion-pdo.php');
+include_once('conexion.php');
