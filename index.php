@@ -1,14 +1,12 @@
 <?php
-// index.php - Página principal PARA TODOS LOS USUARIOS
+// index.php - VERSIÓN CORREGIDA
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Session start
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Incluir conexión
 include_once('conexion.php');
 
 // Si NO está logueado, redirigir al login
@@ -17,15 +15,19 @@ if (!isset($_SESSION['usuario']) || empty($_SESSION['usuario'])) {
     exit();
 }
 
-// Obtener artículos para mostrar en el catálogo
+// Obtener artículos de la base de datos
 $articulos = [];
 try {
     $sql = "SELECT id, nombre, descripcion, precio, imagen, stock FROM articulos WHERE stock > 0 ORDER BY nombre";
     $stmt = $conn->prepare($sql);
     $stmt->execute();
     $articulos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // DEBUG: Ver cuántos artículos se obtuvieron
+    error_log("📦 Artículos obtenidos: " . count($articulos));
+    
 } catch (PDOException $e) {
-    error_log("Error al obtener artículos: " . $e->getMessage());
+    error_log("❌ Error al obtener artículos: " . $e->getMessage());
 }
 ?>
 
@@ -50,6 +52,7 @@ try {
             border: none;
             border-radius: 15px;
             overflow: hidden;
+            height: 100%;
         }
         .product-card:hover {
             transform: translateY(-5px);
@@ -59,11 +62,21 @@ try {
             height: 200px;
             object-fit: cover;
             width: 100%;
+            background: #f8f9fa;
+        }
+        .product-image-placeholder {
+            height: 200px;
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
         }
         .badge-stock {
             position: absolute;
             top: 10px;
             right: 10px;
+            z-index: 1;
         }
         .welcome-section {
             background: white;
@@ -78,7 +91,7 @@ try {
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
         <div class="container">
-            <a class="navbar-brand" href="#">
+            <a class="navbar-brand" href="index.php">
                 <i class="fas fa-seedling me-2"></i>Flores de Chinampa
             </a>
             
@@ -89,7 +102,7 @@ try {
                 </span>
                 
                 <!-- Menú para administradores -->
-                <?php if ($_SESSION['rol'] === 'administrador'): ?>
+                <?php if ($_SESSION['rol'] === 'admin'): ?>
                     <a href="gestion_articulos.php" class="btn btn-outline-light btn-sm me-2">
                         <i class="fas fa-cog me-1"></i>Gestión
                     </a>
@@ -107,7 +120,7 @@ try {
         <div class="welcome-section text-center">
             <h1 class="text-success">¡Bienvenido, <?php echo htmlspecialchars($_SESSION['usuario']); ?>! 🌸</h1>
             <p class="lead mb-0">Explora nuestro catálogo de flores frescas</p>
-            <?php if ($_SESSION['rol'] === 'administrador'): ?>
+            <?php if ($_SESSION['rol'] === 'admin'): ?>
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-info-circle me-2"></i>
                     Modo <strong>Administrador</strong> - Puedes gestionar productos desde el botón superior
@@ -122,6 +135,13 @@ try {
             <div class="alert alert-warning text-center">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 No hay productos disponibles en este momento.
+                <?php if ($_SESSION['rol'] === 'admin'): ?>
+                    <div class="mt-2">
+                        <a href="gestion_articulos.php" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus me-1"></i>Agregar Productos
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php else: ?>
             <div class="row">
@@ -130,15 +150,17 @@ try {
                         <div class="card product-card h-100">
                             <!-- Imagen del producto -->
                             <div class="position-relative">
-                                <?php if (!empty($articulo['imagen'])): ?>
+                                <?php if (!empty($articulo['imagen']) && file_exists($articulo['imagen'])): ?>
                                     <img src="<?php echo htmlspecialchars($articulo['imagen']); ?>" 
                                          class="card-img-top product-image" 
-                                         alt="<?php echo htmlspecialchars($articulo['nombre']); ?>">
-                                <?php else: ?>
-                                    <div class="card-img-top product-image bg-light d-flex align-items-center justify-content-center">
-                                        <i class="fas fa-image fa-3x text-muted"></i>
-                                    </div>
+                                         alt="<?php echo htmlspecialchars($articulo['nombre']); ?>"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 <?php endif; ?>
+                                
+                                <!-- Placeholder si no hay imagen o falla -->
+                                <div class="product-image-placeholder" style="<?php echo (!empty($articulo['imagen']) ? 'display: none;' : ''); ?>">
+                                    <i class="fas fa-image fa-3x"></i>
+                                </div>
                                 
                                 <!-- Badge de stock -->
                                 <span class="badge <?php echo $articulo['stock'] > 10 ? 'bg-success' : 'bg-warning'; ?> badge-stock">
@@ -159,13 +181,13 @@ try {
                                             <i class="fas fa-eye me-1"></i>Ver Detalles
                                         </a>
                                         
-                                        <?php if ($_SESSION['rol'] === 'administrador'): ?>
+                                        <?php if ($_SESSION['rol'] === 'admin'): ?>
                                             <a href="editar_articulo.php?id=<?php echo $articulo['id']; ?>" 
                                                class="btn btn-outline-primary btn-sm">
                                                 <i class="fas fa-edit me-1"></i>Editar
                                             </a>
                                         <?php else: ?>
-                                            <button class="btn btn-success btn-sm">
+                                            <button class="btn btn-success btn-sm" onclick="agregarAlCarrito(<?php echo $articulo['id']; ?>)">
                                                 <i class="fas fa-cart-plus me-1"></i>Agregar al Carrito
                                             </button>
                                         <?php endif; ?>
@@ -179,7 +201,7 @@ try {
         <?php endif; ?>
 
         <!-- Información adicional para clientes -->
-        <?php if ($_SESSION['rol'] !== 'administrador'): ?>
+        <?php if ($_SESSION['rol'] !== 'admin'): ?>
             <div class="row mt-5">
                 <div class="col-md-4 mb-3">
                     <div class="card text-center h-100">
@@ -218,6 +240,13 @@ try {
             <p class="mb-0">&copy; 2024 Flores de Chinampa. Todos los derechos reservados.</p>
         </div>
     </footer>
+
+    <script>
+    function agregarAlCarrito(id) {
+        alert('Función de carrito en desarrollo. Producto ID: ' + id);
+        // Aquí iría la lógica para agregar al carrito
+    }
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
