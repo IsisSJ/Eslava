@@ -1,341 +1,227 @@
 <?php
+// carrito.php - VERSIÓN CORREGIDA
 session_start();
-include_once("conexion.php");
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-// Verificar que el usuario esté logueado
-if (!isset($_SESSION['usuario'])) {
+if (!isset($_SESSION['usuario']) || $_SESSION['rol'] !== 'cliente') {
     header('Location: login.php');
     exit();
 }
 
-// Obtener items del carrito desde la sesión
-$carrito = $_SESSION['carrito'] ?? [];
-$total = 0;
-?>
+include_once('conexion.php');
 
+// Limpiar carrito de productos que ya no existen
+if (isset($_SESSION['carrito']) && !empty($_SESSION['carrito'])) {
+    foreach ($_SESSION['carrito'] as $id_articulo => $cantidad) {
+        $sql = "SELECT id FROM articulos WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$id_articulo]);
+        
+        if ($stmt->rowCount() === 0) {
+            // El producto ya no existe, eliminarlo del carrito
+            unset($_SESSION['carrito'][$id_articulo]);
+        }
+    }
+    
+    // Si el carrito quedó vacío después de limpiar, mostrarlo
+    if (empty($_SESSION['carrito'])) {
+        unset($_SESSION['carrito']);
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Carrito de Compra - Flores de Chinampa</title>
+    <title>🛒 Carrito de Compras - Flores de Chinampa</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .container {
-            margin-top: 80px;
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
         }
-        .producto-img {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 8px;
+        .cart-container {
+            max-width: 1000px;
+            margin: 0 auto;
         }
-        .card {
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .payment-method {
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .payment-method:hover {
-            border-color: #28a745;
-        }
-        .payment-method.selected {
-            border-color: #28a745;
-            background-color: #f8fff9;
-        }
-        .card-details {
-            display: none;
-            margin-top: 15px;
+        .cart-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 10px 10px 0 0;
         }
     </style>
 </head>
 <body>
-    <?php include('header.php'); ?>
-    
-    <div class="container">
-        <div class="row">
-            <!-- Resumen del Pedido -->
-            <div class="col-md-8">
-                <div class="card mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h4 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Carrito de Compra</h4>
-                    </div>
-                    <div class="card-body">
-                        <?php if (empty($carrito)): ?>
-                            <div class="text-center py-4">
-                                <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
-                                <h5>Tu carrito está vacío</h5>
-                                <p>Agrega algunos productos para continuar</p>
-                                <a href="productos.php" class="btn btn-success">Ver Productos</a>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($carrito as $item): ?>
-                            <div class="row align-items-center mb-3 pb-3 border-bottom">
-                                <div class="col-md-2">
-                                    <?php if (!empty($item['imagen'])): ?>
-                                        <img src="data:image/jpeg;base64,<?php echo base64_encode($item['imagen']); ?>" 
-                                             class="producto-img" alt="<?php echo htmlspecialchars($item['nombre']); ?>">
-                                    <?php else: ?>
-                                        <div class="producto-img bg-light d-flex align-items-center justify-content-center">
-                                            <i class="fas fa-image text-muted"></i>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6 class="mb-1"><?php echo htmlspecialchars($item['nombre']); ?></h6>
-                                    <p class="text-muted mb-1">Código #<?php echo $item['id']; ?></p>
-                                    <p class="text-success mb-0">
-                                        <small>Stock disponible: <?php echo $item['stock']; ?></small>
-                                    </p>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" class="form-control" value="<?php echo $item['cantidad']; ?>" min="1" max="<?php echo $item['stock']; ?>">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <span class="fw-bold text-success">$<?php echo number_format($item['precio'] * $item['cantidad'], 2); ?></span>
-                                    <button class="btn btn-sm btn-outline-danger mt-1" onclick="eliminarDelCarrito(<?php echo $item['id']; ?>)">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <?php 
-                                $total += $item['precio'] * $item['cantidad'];
-                            endforeach; 
-                            ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <!-- Método de Pago -->
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Método de Pago</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="payment-method" onclick="selectPaymentMethod('efectivo')">
-                            <input type="radio" name="metodo_pago" value="efectivo" id="efectivo" class="me-2">
-                            <label for="efectivo" class="fw-bold">
-                                <i class="fas fa-money-bill-wave me-2"></i>Pago en Efectivo
-                            </label>
-                            <p class="text-muted mb-0 mt-1">Paga cuando recibas tu pedido</p>
-                        </div>
-
-                        <div class="payment-method" onclick="selectPaymentMethod('tarjeta')">
-                            <input type="radio" name="metodo_pago" value="tarjeta" id="tarjeta" class="me-2">
-                            <label for="tarjeta" class="fw-bold">
-                                <i class="fas fa-credit-card me-2"></i>Pago con Tarjeta
-                            </label>
-                            <p class="text-muted mb-0 mt-1">Pago seguro con tarjeta de crédito/débito</p>
-                        </div>
-
-                        <!-- Formulario de Tarjeta (se muestra solo cuando se selecciona tarjeta) -->
-                        <div id="tarjetaDetails" class="card-details">
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <label class="form-label fw-bold">Número de Tarjeta</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19" 
-                                               oninput="formatCardNumber(this)">
-                                        <span class="input-group-text"><i class="fas fa-credit-card"></i></span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Fecha de Expiración</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" placeholder="MM/AA" maxlength="5" 
-                                               oninput="formatExpiryDate(this)">
-                                        <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">CVV</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" placeholder="123" maxlength="3" 
-                                               oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-12">
-                                    <label class="form-label fw-bold">Nombre en la Tarjeta</label>
-                                    <input type="text" class="form-control" placeholder="JUAN PEREZ GARCIA">
-                                </div>
-                            </div>
-                            
-                            <div class="form-check mt-3">
-                                <input class="form-check-input" type="checkbox" id="saveCard">
-                                <label class="form-check-label" for="saveCard">
-                                    Guardar información de tarjeta para futuras compras
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+        <div class="container">
+            <a class="navbar-brand" href="index.php">
+                <i class="fas fa-seedling me-2"></i>Flores de Chinampa
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user me-1"></i><?php echo htmlspecialchars($_SESSION['usuario']); ?>
+                </span>
+                <a href="index.php" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fas fa-store me-1"></i>Seguir Comprando
+                </a>
+                <a href="logout.php" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Salir
+                </a>
             </div>
+        </div>
+    </nav>
 
-            <!-- Resumen del Pedido -->
-            <div class="col-md-4">
-                <div class="card sticky-top" style="top: 100px;">
-                    <div class="card-header bg-warning">
-                        <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Resumen del Pedido</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Productos (<?php echo count($carrito); ?>):</span>
-                            <span>$<?php echo number_format($total, 2); ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Envío:</span>
-                            <span class="text-success">Gratis</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>IVA (16%):</span>
-                            <span>$<?php echo number_format($total * 0.16, 2); ?></span>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between mb-3">
-                            <strong>Total:</strong>
-                            <strong class="text-success fs-5">$<?php echo number_format($total * 1.16, 2); ?></strong>
-                        </div>
-                        
-                        <button class="btn btn-success w-100 py-2" onclick="procesarPago()">
-                            <i class="fas fa-lock me-2"></i>Proceder al Pago
-                        </button>
-                        
-                        <div class="mt-3 text-center">
-                            <small class="text-muted">
-                                <i class="fas fa-shield-alt me-1"></i>
-                                Pago 100% seguro
-                            </small>
-                        </div>
-                    </div>
+    <div class="container mt-4">
+        <div class="cart-container">
+            <div class="card shadow">
+                <div class="card-header cart-header text-center">
+                    <h3 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Tu Carrito de Compras</h3>
                 </div>
+                <div class="card-body p-4">
+                    
+                    <?php if (isset($_SESSION['mensaje'])): ?>
+                        <div class="alert alert-success alert-dismissible fade show">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <?php echo htmlspecialchars($_SESSION['mensaje']); ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        <?php unset($_SESSION['mensaje']); ?>
+                    <?php endif; ?>
+                    
+                    <?php if (!isset($_SESSION['carrito']) || empty($_SESSION['carrito'])): ?>
+                        <div class="text-center py-5">
+                            <i class="fas fa-shopping-cart fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">Tu carrito está vacío</h4>
+                            <p class="text-muted">Agrega algunos productos maravillosos a tu carrito</p>
+                            <a href="index.php" class="btn btn-success btn-lg">
+                                <i class="fas fa-store me-2"></i>Explorar Productos
+                            </a>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Precio Unitario</th>
+                                        <th>Cantidad</th>
+                                        <th>Subtotal</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php 
+                                    $total = 0;
+                                    $items_validos = 0;
+                                    
+                                    foreach ($_SESSION['carrito'] as $id_articulo => $cantidad):
+                                        // Obtener información del producto con manejo de errores
+                                        $sql = "SELECT id, nombre, precio, stock FROM articulos WHERE id = ?";
+                                        $stmt = $conn->prepare($sql);
+                                        $stmt->execute([$id_articulo]);
+                                        $producto = $stmt->fetch(PDO::FETCH_ASSOC);
+                                        
+                                        // Solo mostrar productos que existen
+                                        if ($producto):
+                                            $items_validos++;
+                                            $subtotal = $producto['precio'] * $cantidad;
+                                            $total += $subtotal;
+                                    ?>
+                                    <tr>
+                                        <td>
+                                            <strong><?php echo htmlspecialchars($producto['nombre']); ?></strong>
+                                            <br>
+                                            <small class="text-muted">Código: #<?php echo $producto['id']; ?></small>
+                                            <br>
+                                            <small class="text-info">
+                                                <i class="fas fa-box me-1"></i>Stock disponible: <?php echo $producto['stock']; ?>
+                                            </small>
+                                        </td>
+                                        <td class="align-middle">
+                                            <strong>$<?php echo number_format($producto['precio'], 2); ?></strong>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-primary fs-6"><?php echo $cantidad; ?></span>
+                                                <div class="ms-2">
+                                                    <a href="agregar_carrito.php?id_articulo=<?php echo $id_articulo; ?>&cantidad=1" class="btn btn-sm btn-outline-success">
+                                                        <i class="fas fa-plus"></i>
+                                                    </a>
+                                                    <?php if ($cantidad > 1): ?>
+                                                        <a href="eliminar_carrito.php?id=<?php echo $id_articulo; ?>&reducir=1" class="btn btn-sm btn-outline-warning">
+                                                            <i class="fas fa-minus"></i>
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <strong class="text-success">$<?php echo number_format($subtotal, 2); ?></strong>
+                                        </td>
+                                        <td class="align-middle">
+                                            <a href="eliminar_carrito.php?id=<?php echo $id_articulo; ?>" 
+                                               class="btn btn-danger btn-sm"
+                                               onclick="return confirm('¿Estás seguro de eliminar este producto del carrito?')">
+                                                <i class="fas fa-trash me-1"></i>Eliminar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php 
+                                        endif;
+                                    endforeach; 
+                                    
+                                    // Si no hay productos válidos, mostrar carrito vacío
+                                    if ($items_validos === 0): 
+                                    ?>
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4">
+                                                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                                                <p>Los productos en tu carrito ya no están disponibles</p>
+                                                <a href="index.php" class="btn btn-success">Ver Productos Disponibles</a>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                                <?php if ($items_validos > 0): ?>
+                                <tfoot class="table-group-divider">
+                                    <tr>
+                                        <th colspan="3" class="text-end">Total:</th>
+                                        <th colspan="2" class="text-success">
+                                            <h4 class="mb-0">$<?php echo number_format($total, 2); ?></h4>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                                <?php endif; ?>
+                            </table>
+                        </div>
 
-                <!-- Información de Envío -->
-                <div class="card mt-3">
-                    <div class="card-body">
-                        <h6><i class="fas fa-truck me-2"></i>Información de Envío</h6>
-                        <ul class="list-unstyled small text-muted">
-                            <li><i class="fas fa-check text-success me-1"></i> Envío gratis en compras mayores a $500</li>
-                            <li><i class="fas fa-check text-success me-1"></i> Tiempo de entrega: 2-3 días hábiles</li>
-                            <li><i class="fas fa-check text-success me-1"></i> Solo entregas en CDMX y área metropolitana</li>
-                        </ul>
-                    </div>
+                        <?php if ($items_validos > 0): ?>
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <div>
+                                <a href="index.php" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>Seguir Comprando
+                                </a>
+                                <a href="vaciar_carrito.php" class="btn btn-outline-warning ms-2"
+                                   onclick="return confirm('¿Estás seguro de vaciar todo el carrito?')">
+                                    <i class="fas fa-broom me-2"></i>Vaciar Carrito
+                                </a>
+                            </div>
+                            <div>
+                                <a href="confirmar_pedido.php" class="btn btn-success btn-lg">
+                                    <i class="fas fa-check-circle me-2"></i>Confirmar Pedido
+                                </a>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function selectPaymentMethod(method) {
-            // Remover selección de todos los métodos
-            document.querySelectorAll('.payment-method').forEach(el => {
-                el.classList.remove('selected');
-            });
-            
-            // Seleccionar el método clickeado
-            event.currentTarget.classList.add('selected');
-            document.querySelector(`input[value="${method}"]`).checked = true;
-            
-            // Mostrar/ocultar detalles de tarjeta
-            const cardDetails = document.getElementById('tarjetaDetails');
-            if (method === 'tarjeta') {
-                cardDetails.style.display = 'block';
-            } else {
-                cardDetails.style.display = 'none';
-            }
-        }
-
-        function formatCardNumber(input) {
-            // Remover todos los espacios existentes
-            let value = input.value.replace(/\s+/g, '');
-            
-            // Agregar espacio cada 4 dígitos
-            value = value.replace(/(\d{4})/g, '$1 ').trim();
-            
-            // Limitar a 16 dígitos + 3 espacios = 19 caracteres
-            if (value.length > 19) {
-                value = value.substring(0, 19);
-            }
-            
-            input.value = value;
-        }
-
-        function formatExpiryDate(input) {
-            let value = input.value.replace(/\D/g, '');
-            
-            if (value.length >= 2) {
-                value = value.substring(0, 2) + '/' + value.substring(2, 4);
-            }
-            
-            if (value.length > 5) {
-                value = value.substring(0, 5);
-            }
-            
-            input.value = value;
-        }
-
-        function eliminarDelCarrito(productoId) {
-            if (confirm('¿Estás seguro de que quieres eliminar este producto del carrito?')) {
-                // Aquí iría la lógica para eliminar del carrito
-                alert('Producto eliminado del carrito');
-                location.reload();
-            }
-        }
-
-        function procesarPago() {
-            const metodoPago = document.querySelector('input[name="metodo_pago"]:checked');
-            
-            if (!metodoPago) {
-                alert('Por favor selecciona un método de pago');
-                return;
-            }
-
-            if (metodoPago.value === 'tarjeta') {
-                // Validar datos de tarjeta
-                const cardNumber = document.querySelector('input[placeholder="1234 5678 9012 3456"]').value;
-                const expiryDate = document.querySelector('input[placeholder="MM/AA"]').value;
-                const cvv = document.querySelector('input[placeholder="123"]').value;
-                const cardName = document.querySelector('input[placeholder="JUAN PEREZ GARCIA"]').value;
-
-                if (!cardNumber || cardNumber.replace(/\s/g, '').length !== 16) {
-                    alert('Por favor ingresa un número de tarjeta válido (16 dígitos)');
-                    return;
-                }
-
-                if (!expiryDate || expiryDate.length !== 5) {
-                    alert('Por favor ingresa una fecha de expiración válida (MM/AA)');
-                    return;
-                }
-
-                if (!cvv || cvv.length !== 3) {
-                    alert('Por favor ingresa un CVV válido (3 dígitos)');
-                    return;
-                }
-
-                if (!cardName) {
-                    alert('Por favor ingresa el nombre que aparece en la tarjeta');
-                    return;
-                }
-            }
-
-            // Redirigir a confirmación de pedido
-            window.location.href = 'confirmar_pedido.php?metodo=' + metodoPago.value;
-        }
-    </script>
 </body>
 </html>

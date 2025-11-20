@@ -1,4 +1,5 @@
 <?php
+// eliminar_carrito.php
 session_start();
 
 if (!isset($_SESSION['usuario']) || $_SESSION['rol'] !== 'cliente') {
@@ -6,16 +7,18 @@ if (!isset($_SESSION['usuario']) || $_SESSION['rol'] !== 'cliente') {
     exit();
 }
 
-if (isset($_GET['id'])) {
-    $producto_id = intval($_GET['id']);
-    
-    foreach ($_SESSION['carrito'] as $key => $item) {
-        if ($item['id'] == $producto_id) {
-            unset($_SESSION['carrito'][$key]);
-            break;
-        }
+$id_articulo = $_GET['id'] ?? 0;
+
+if ($id_articulo > 0 && isset($_SESSION['carrito'][$id_articulo])) {
+    // Si es para reducir cantidad
+    if (isset($_GET['reducir']) && $_SESSION['carrito'][$id_articulo] > 1) {
+        $_SESSION['carrito'][$id_articulo]--;
+    } else {
+        // Eliminar completamente
+        unset($_SESSION['carrito'][$id_articulo]);
     }
-    $_SESSION['carrito'] = array_values($_SESSION['carrito']);
+    
+    $_SESSION['mensaje'] = "Producto actualizado en el carrito";
 }
 
 header('Location: carrito.php');
