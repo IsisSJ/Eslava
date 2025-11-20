@@ -23,9 +23,6 @@ try {
     $stmt->execute();
     $articulos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // DEBUG: Ver cuántos artículos se obtuvieron
-    error_log("📦 Artículos obtenidos: " . count($articulos));
-    
 } catch (PDOException $e) {
     error_log("❌ Error al obtener artículos: " . $e->getMessage());
 }
@@ -101,6 +98,13 @@ try {
                     <small class="badge bg-light text-dark ms-1"><?php echo htmlspecialchars($_SESSION['rol']); ?></small>
                 </span>
                 
+                <!-- Carrito para clientes -->
+                <?php if ($_SESSION['rol'] === 'cliente'): ?>
+                    <a href="carrito.php" class="btn btn-outline-light btn-sm me-2">
+                        <i class="fas fa-shopping-cart me-1"></i>Carrito
+                    </a>
+                <?php endif; ?>
+                
                 <!-- Menú para administradores -->
                 <?php if ($_SESSION['rol'] === 'admin'): ?>
                     <a href="gestion_articulos.php" class="btn btn-outline-light btn-sm me-2">
@@ -123,7 +127,7 @@ try {
             <?php if ($_SESSION['rol'] === 'admin'): ?>
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-info-circle me-2"></i>
-                    Modo <strong>Administrador</strong> - Puedes gestionar productos desde el botón superior
+                    Modo <strong>Administrador</strong> - Puedes gestionar productos
                 </div>
             <?php endif; ?>
         </div>
@@ -150,16 +154,22 @@ try {
                         <div class="card product-card h-100">
                             <!-- Imagen del producto -->
                             <div class="position-relative">
-                                <?php if (!empty($articulo['imagen']) && file_exists($articulo['imagen'])): ?>
-                                    <img src="<?php echo htmlspecialchars($articulo['imagen']); ?>" 
+                                <?php 
+                                $imagen_path = $articulo['imagen'];
+                                $imagen_existe = !empty($imagen_path);
+                                ?>
+                                
+                                <?php if ($imagen_existe): ?>
+                                    <img src="<?php echo htmlspecialchars($imagen_path); ?>" 
                                          class="card-img-top product-image" 
                                          alt="<?php echo htmlspecialchars($articulo['nombre']); ?>"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 <?php endif; ?>
                                 
                                 <!-- Placeholder si no hay imagen o falla -->
-                                <div class="product-image-placeholder" style="<?php echo (!empty($articulo['imagen']) ? 'display: none;' : ''); ?>">
+                                <div class="product-image-placeholder" style="<?php echo ($imagen_existe ? 'display: none;' : ''); ?>">
                                     <i class="fas fa-image fa-3x"></i>
+                                    <small class="mt-2"><?php echo htmlspecialchars($articulo['nombre']); ?></small>
                                 </div>
                                 
                                 <!-- Badge de stock -->
@@ -187,9 +197,14 @@ try {
                                                 <i class="fas fa-edit me-1"></i>Editar
                                             </a>
                                         <?php else: ?>
-                                            <button class="btn btn-success btn-sm" onclick="agregarAlCarrito(<?php echo $articulo['id']; ?>)">
-                                                <i class="fas fa-cart-plus me-1"></i>Agregar al Carrito
-                                            </button>
+                                            <!-- Botón de agregar al carrito FUNCIONAL -->
+                                            <form action="agregar_carrito.php" method="POST" class="d-inline">
+                                                <input type="hidden" name="id_articulo" value="<?php echo $articulo['id']; ?>">
+                                                <input type="hidden" name="cantidad" value="1">
+                                                <button type="submit" class="btn btn-success btn-sm w-100">
+                                                    <i class="fas fa-cart-plus me-1"></i>Agregar al Carrito
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -199,54 +214,7 @@ try {
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
-
-        <!-- Información adicional para clientes -->
-        <?php if ($_SESSION['rol'] !== 'admin'): ?>
-            <div class="row mt-5">
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="fas fa-shipping-fast fa-2x text-success mb-3"></i>
-                            <h5>Envío Rápido</h5>
-                            <p class="text-muted">Recibe tus flores en 24-48 horas</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="fas fa-award fa-2x text-success mb-3"></i>
-                            <h5>Calidad Garantizada</h5>
-                            <p class="text-muted">Flores frescas directo de chinampa</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <i class="fas fa-headset fa-2x text-success mb-3"></i>
-                            <h5>Soporte 24/7</h5>
-                            <p class="text-muted">Estamos aquí para ayudarte</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
     </div>
-
-    <!-- Footer -->
-    <footer class="bg-dark text-white mt-5 py-4">
-        <div class="container text-center">
-            <p class="mb-0">&copy; 2024 Flores de Chinampa. Todos los derechos reservados.</p>
-        </div>
-    </footer>
-
-    <script>
-    function agregarAlCarrito(id) {
-        alert('Función de carrito en desarrollo. Producto ID: ' + id);
-        // Aquí iría la lógica para agregar al carrito
-    }
-    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
