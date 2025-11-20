@@ -1,8 +1,9 @@
 <?php
-// index.php - VERSIÓN CORREGIDA
+// index.php - VERSIÓN MEJORADA PARA IMÁGENES
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// INICIAR SESIÓN AL INICIO
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -25,6 +26,25 @@ try {
     
 } catch (PDOException $e) {
     error_log("❌ Error al obtener artículos: " . $e->getMessage());
+}
+
+// Función para verificar si una imagen es válida
+function esImagenValida($ruta_imagen) {
+    if (empty($ruta_imagen) || $ruta_imagen === 'NULL') {
+        return false;
+    }
+    
+    // Verificar si es una ruta de archivo válida
+    if (preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $ruta_imagen)) {
+        return true;
+    }
+    
+    // Si es texto muy largo, probablemente esté corrupto
+    if (strlen($ruta_imagen) > 255) {
+        return false;
+    }
+    
+    return false;
 }
 ?>
 
@@ -63,11 +83,12 @@ try {
         }
         .product-image-placeholder {
             height: 200px;
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
+            flex-direction: column;
         }
         .badge-stock {
             position: absolute;
@@ -81,6 +102,10 @@ try {
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .flower-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -102,6 +127,9 @@ try {
                 <?php if ($_SESSION['rol'] === 'cliente'): ?>
                     <a href="carrito.php" class="btn btn-outline-light btn-sm me-2">
                         <i class="fas fa-shopping-cart me-1"></i>Carrito
+                        <?php if (isset($_SESSION['carrito']) && count($_SESSION['carrito']) > 0): ?>
+                            <span class="badge bg-danger"><?php echo array_sum($_SESSION['carrito']); ?></span>
+                        <?php endif; ?>
                     </a>
                 <?php endif; ?>
                 
@@ -155,21 +183,22 @@ try {
                             <!-- Imagen del producto -->
                             <div class="position-relative">
                                 <?php 
-                                $imagen_path = $articulo['imagen'];
-                                $imagen_existe = !empty($imagen_path);
+                                $imagen_valida = esImagenValida($articulo['imagen']);
+                                $iconos_flores = ['🌸', '🌹', '🌺', '🌻', '💐', '🥀', '🪷', '🌼'];
+                                $icono_aleatorio = $iconos_flores[array_rand($iconos_flores)];
                                 ?>
                                 
-                                <?php if ($imagen_existe): ?>
-                                    <img src="<?php echo htmlspecialchars($imagen_path); ?>" 
+                                <?php if ($imagen_valida): ?>
+                                    <img src="<?php echo htmlspecialchars($articulo['imagen']); ?>" 
                                          class="card-img-top product-image" 
                                          alt="<?php echo htmlspecialchars($articulo['nombre']); ?>"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 <?php endif; ?>
                                 
-                                <!-- Placeholder si no hay imagen o falla -->
-                                <div class="product-image-placeholder" style="<?php echo ($imagen_existe ? 'display: none;' : ''); ?>">
-                                    <i class="fas fa-image fa-3x"></i>
-                                    <small class="mt-2"><?php echo htmlspecialchars($articulo['nombre']); ?></small>
+                                <!-- Placeholder bonito si no hay imagen válida -->
+                                <div class="product-image-placeholder" style="<?php echo ($imagen_valida ? 'display: none;' : ''); ?>">
+                                    <div class="flower-icon"><?php echo $icono_aleatorio; ?></div>
+                                    <small><?php echo htmlspecialchars($articulo['nombre']); ?></small>
                                 </div>
                                 
                                 <!-- Badge de stock -->
