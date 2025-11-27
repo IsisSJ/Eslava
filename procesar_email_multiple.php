@@ -2,7 +2,8 @@
 session_start();
 include_once("conexion.php");
 
-if (!isset($_SESSION['usuario']) || empty($_SESSION['carrito']) || !isset($_POST['emails'])) {
+// VERIFICAR SESIÓN DEL LOGIN (modificar esta parte)
+if (!isset($_SESSION['usuario_id']) || empty($_SESSION['carrito']) || !isset($_POST['emails'])) {
     header('Location: carrito.php');
     exit();
 }
@@ -15,7 +16,7 @@ $mensaje_personal = $_POST['mensaje_personal'] ?? '';
 $destinatarios_validos = [];
 foreach ($emails as $index => $email) {
     if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $nombre = $nombres[$index] ?? $_SESSION['usuario'];
+        $nombre = $nombres[$index] ?? $_SESSION['usuario_nombre']; // ← Cambiado aquí
         $destinatarios_validos[$email] = $nombre;
     }
 }

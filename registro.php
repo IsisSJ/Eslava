@@ -10,14 +10,16 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nombre = trim($_POST['nombre'] ?? '');
+    $usuario = trim($_POST['usuario'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
 
     // Validaciones
-    if (empty($nombre) || empty($email) || empty($password)) {
+    if (empty($usuario) || empty($email) || empty($password)) {
         $error = "Todos los campos son obligatorios";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "El formato del email no es válido";
     } elseif ($password !== $confirm_password) {
         $error = "Las contraseñas no coinciden";
     } elseif (strlen($password) < 6) {
@@ -25,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             // Verificar si el usuario o email ya existen
-            $check_stmt = $conn->prepare("SELECT id FROM usuarios WHERE nombre_usuario = ? OR correo = ?");
-            $check_stmt->execute([$nombre, $email]);
+            $check_stmt = $conn->prepare("SELECT id FROM usuarios WHERE usuario = ? OR email = ?");
+            $check_stmt->execute([$usuario, $email]);
             
             if ($check_stmt->fetch()) {
                 $error = "El nombre de usuario o email ya está registrado";
@@ -35,14 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
                 $rol = 'cliente'; // Rol por defecto
                 
-                // Insertar nuevo usuario
-                $insert_stmt = $conn->prepare("INSERT INTO usuarios (nombre_usuario, correo, password, rol) VALUES (?, ?, ?, ?)");
+                // Insertar nuevo usuario con email
+                $insert_stmt = $conn->prepare("INSERT INTO usuarios (usuario, email, password, rol) VALUES (?, ?, ?, ?)");
                 
-                if ($insert_stmt->execute([$nombre, $email, $password_hash, $rol])) {
-                    $success = "✅ Usuario registrado exitosamente. Ahora puedes iniciar sesión.";
-                    
-                    // Limpiar el formulario
-                    $nombre = $email = '';
+                if ($insert_stmt->execute([$usuario, $email, $password_hash, $rol])) {
+                    // Redirigir al login con mensaje de éxito
+                    header("Location: login.php?success=registrado&usuario=" . urlencode($usuario));
+                    exit();
                 } else {
                     $error = "❌ Error al registrar usuario. Intenta nuevamente.";
                 }
@@ -115,12 +116,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <form method="POST" action="registro.php">
                         <div class="mb-3">
-                            <label for="nombre" class="form-label">
+                            <label for="usuario" class="form-label">
                                 <i class="fas fa-user me-2"></i>Nombre de Usuario
                             </label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" 
-                                   value="<?php echo htmlspecialchars($nombre ?? ''); ?>" 
+                            <input type="text" class="form-control" id="usuario" name="usuario" 
+                                   value="<?php echo htmlspecialchars($usuario ?? ''); ?>" 
                                    placeholder="Ingresa tu nombre de usuario" required>
+                            <div class="form-text">Este será tu nombre para iniciar sesión</div>
                         </div>
                         
                         <div class="mb-3">
@@ -129,7 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </label>
                             <input type="email" class="form-control" id="email" name="email" 
                                    value="<?php echo htmlspecialchars($email ?? ''); ?>" 
-                                   placeholder="Ingresa tu correo electrónico" required>
+                                   placeholder="tu@email.com" required>
+                            <div class="form-text">Aquí recibirás el ticket de tus compras</div>
                         </div>
                         
                         <div class="mb-3">
@@ -172,10 +175,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <!-- Información de la cuenta -->
                     <div class="mt-3 p-3 bg-light rounded">
                         <small class="text-muted">
-                            <strong><i class="fas fa-info-circle me-1"></i>Información:</strong><br>
-                            • Tu cuenta será de tipo <strong>cliente</strong><br>
-                            • Podrás ver productos pero no editarlos<br>
-                            • Para acceso de administrador, contacta al soporte
+                            <strong><i class="fas fa-info-circle me-1"></i>Información importante:</strong><br>
+                            • Tu <strong>email</strong> se usará para enviarte el ticket de compra<br>
+                            • Tu <strong>usuario</strong> será para iniciar sesión<br>
+                            • Cuenta tipo: <strong>cliente</strong>
                         </small>
                     </div>
                 </div>
