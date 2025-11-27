@@ -7,18 +7,7 @@ ini_set('display_errors', 1);
 
 $error = '';
 
-// ✅ CORREGIDO: Verificar sesión ANTES de procesar el POST
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
-    // Si ya está logueado, redirigir según el rol
-    if ($_SESSION['usuario_rol'] === 'admin') {
-        header("Location: admin_dashboard.php");
-    } else {
-        header("Location: articulos.php");
-    }
-    exit();
-}
-
-// Procesar login solo si no está logueado
+// ✅ CORREGIDO: Primero procesar el POST, luego verificar sesión
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre_usuario = trim($_POST['nombre_usuario'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -33,12 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($usuario_data) {
                 if (password_verify($password, $usuario_data['password'])) {
-                    // Login exitoso
+                    // Login exitoso - Establecer variables de sesión COMPATIBLES
                     $_SESSION['usuario_id'] = $usuario_data['id'];
                     $_SESSION['usuario_nombre'] = $usuario_data['nombre_usuario'];
+                    $_SESSION['usuario'] = $usuario_data['nombre_usuario']; // Compatibilidad con header
                     $_SESSION['usuario_email'] = $usuario_data['correo'];
                     $_SESSION['usuario_rol'] = $usuario_data['rol'];
+                    $_SESSION['rol'] = $usuario_data['rol']; // Compatibilidad con header
                     $_SESSION['logged_in'] = true;
+
+                    // Debug: Mostrar sesión (quitar en producción)
+                    error_log("Login exitoso - Usuario: " . $usuario_data['nombre_usuario'] . " - Rol: " . $usuario_data['rol']);
 
                     // Redirigir según el rol
                     if ($usuario_data['rol'] === 'admin') {
@@ -57,6 +51,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "❌ Error de base de datos: " . $e->getMessage();
         }
     }
+}
+
+// ✅ CORREGIDO: Verificar sesión DESPUÉS de procesar POST
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
+    // Si ya está logueado, redirigir según el rol
+    if ($_SESSION['usuario_rol'] === 'admin') {
+        header("Location: admin_dashboard.php");
+    } else {
+        header("Location: articulos.php");
+    }
+    exit();
 }
 ?>
 
@@ -123,6 +128,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-color: #28a745;
             box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
         }
+        .session-debug {
+            background: rgba(0,0,0,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -135,10 +147,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div class="card-body p-4">
                     
+                    <!-- Debug de sesión (opcional, quitar en producción) -->
+                    <?php if (false): // Cambiar a true para debug ?>
+                    <div class="session-debug text-white">
+                        <strong>Debug Sesión:</strong><br>
+                        <?php 
+                        echo "logged_in: " . ($_SESSION['logged_in'] ?? 'false') . "<br>";
+                        echo "usuario_nombre: " . ($_SESSION['usuario_nombre'] ?? 'no-set') . "<br>";
+                        echo "usuario_rol: " . ($_SESSION['usuario_rol'] ?? 'no-set');
+                        ?>
+                    </div>
+                    <?php endif; ?>
+
                     <?php if (isset($_GET['success']) && $_GET['success'] == 'registrado'): ?>
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
                             <i class="fas fa-check-circle me-2"></i>
                             ✅ ¡Registro exitoso! Ahora puedes iniciar sesión
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (isset($_GET['success']) && $_GET['success'] == 'logout'): ?>
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            ✅ Sesión cerrada correctamente
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     <?php endif; ?>
@@ -189,6 +221,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <i class="fas fa-user-plus me-1"></i>¿No tienes cuenta? Regístrate aquí
                         </a>
                     </div>
+
+                    <!-- Información de prueba -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <small class="text-muted">
+                            <strong><i class="fas fa-info-circle me-1"></i>Cuentas de prueba:</strong><br>
+                            • Admin: usuario: <strong>admin</strong> / contraseña: <strong>admin123</strong><br>
+                            • Cliente: usuario: <strong>cliente</strong> / contraseña: <strong>cliente123</strong>
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,6 +250,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             passwordIcon.classList.add('fa-eye');
         }
     }
+
+    // Auto-focus en el campo de usuario
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('nombre_usuario').focus();
+    });
     </script>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

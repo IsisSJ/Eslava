@@ -1,23 +1,18 @@
 <?php
-$servername = "localhost";
-$username = "root";
-$password = "";
+include_once 'conexion.php';
 
-// Conectar sin base de datos
-$conn = new mysqli($servername, $username, $password);
-
-if ($conn->connect_error) {
-    die("Conexión fallida: " . $conn->connect_error);
+if ($conn) {
+    echo "✅ Conexión a BD exitosa";
+    
+    // Probar consulta
+    try {
+        $stmt = $conn->query("SELECT COUNT(*) as total FROM usuarios");
+        $result = $stmt->fetch();
+        echo "<br>✅ Total usuarios: " . $result['total'];
+    } catch (PDOException $e) {
+        echo "<br>❌ Error en consulta: " . $e->getMessage();
+    }
+} else {
+    echo "❌ Conexión a BD fallida";
 }
-
-echo "✅ Conexión al servidor MySQL exitosa<br>";
-
-// Listar bases de datos existentes
-$result = $conn->query("SHOW DATABASES");
-echo "Bases de datos disponibles:<br>";
-while ($row = $result->fetch_array()) {
-    echo "- " . $row[0] . "<br>";
-}
-
-$conn->close();
 ?>
