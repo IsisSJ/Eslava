@@ -1,0 +1,6 @@
+# Crear archivo .gitignore
+echo "test_db.php" >> .gitignore
+echo "*.log" >> .gitignore
+echo ".env" >> .gitignore
+echo "test_conexion.php" >> .gitignore
+echo "test_redirect.php" >> .gitignore
