@@ -1,38 +1,51 @@
 <?php
-// conexion.php - Configuración para Render/MySQL
+// conexion.php para Clever Cloud MySQL
 
-// Detectar si estamos en entorno local o producción (Render)
-$is_render = getenv('RENDER') ? true : false;
+// Detectar entorno
+$is_clever_cloud = getenv('MYSQL_ADDON_HOST') ? true : false;
 
-if ($is_render) {
-    // Configuración para Render (Producción)
-    $host = getenv('MYSQL_HOST') ?: 'localhost';
-    $dbname = getenv('MYSQL_DATABASE') ?: 'flores_chinampa';
-    $username = getenv('MYSQL_USERNAME') ?: 'admin';
-    $password = getenv('MYSQL_PASSWORD') ?: '';
-    $port = getenv('MYSQL_PORT') ?: '3306';
+if ($is_clever_cloud) {
+    // Configuración para Clever Cloud
+    $host = getenv('MYSQL_ADDON_HOST');
+    $dbname = getenv('MYSQL_ADDON_DB');
+    $username = getenv('MYSQL_ADDON_USER');
+    $password = getenv('MYSQL_ADDON_PASSWORD');
+    $port = getenv('MYSQL_ADDON_PORT') ?: '3306';
     
-    // En Render usa TCP en lugar de socket
-    $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8";
+    $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
 } else {
-    // Configuración para entorno local
+    // Configuración local
     $host = 'localhost';
     $dbname = 'flores_chinampa';
     $username = 'root';
     $password = '';
-    $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8";
+    $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
 }
 
 try {
-    $conn = new PDO($dsn, $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    $conn = new PDO($dsn, $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ]);
     
-    // Debug (quitar en producción)
-    error_log("✅ Conexión exitosa a: " . $dsn);
+    error_log("✅ Conectado a: " . ($is_clever_cloud ? "Clever Cloud MySQL" : "Local MySQL"));
     
 } catch(PDOException $e) {
     error_log("❌ Error de conexión: " . $e->getMessage());
-    die("Error de conexión a la base de datos. Por favor intenta más tarde.");
+    
+    // Mensaje detallado para debug
+    if ($is_clever_cloud) {
+        $debug_info = [
+            'host' => $host,
+            'dbname' => $dbname,
+            'username' => $username,
+            'port' => $port,
+            'error' => $e->getMessage()
+        ];
+        error_log("Clever Cloud Debug: " . print_r($debug_info, true));
+    }
+    
+    die("Error de conexión con la base de datos. Por favor intenta más tarde.");
 }
 ?>
