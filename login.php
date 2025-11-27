@@ -7,6 +7,18 @@ ini_set('display_errors', 1);
 
 $error = '';
 
+// ✅ CORREGIDO: Verificar sesión ANTES de procesar el POST
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
+    // Si ya está logueado, redirigir según el rol
+    if ($_SESSION['usuario_rol'] === 'admin') {
+        header("Location: admin_dashboard.php");
+    } else {
+        header("Location: articulos.php");
+    }
+    exit();
+}
+
+// Procesar login solo si no está logueado
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre_usuario = trim($_POST['nombre_usuario'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -15,20 +27,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Por favor ingresa usuario y contraseña";
     } else {
         try {
-            // ✅ CONSULTA CORREGIDA - Usando nombre_usuario y correo
             $stmt = $conn->prepare("SELECT id, nombre_usuario, correo, password, rol FROM usuarios WHERE nombre_usuario = ?");
             $stmt->execute([$nombre_usuario]);
             $usuario_data = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($usuario_data) {
                 if (password_verify($password, $usuario_data['password'])) {
-                    // ✅ GUARDAR CORREO EN SESIÓN para los tickets
+                    // Login exitoso
                     $_SESSION['usuario_id'] = $usuario_data['id'];
                     $_SESSION['usuario_nombre'] = $usuario_data['nombre_usuario'];
-                    $_SESSION['usuario_email'] = $usuario_data['correo']; // ← CORREO no email
+                    $_SESSION['usuario_email'] = $usuario_data['correo'];
                     $_SESSION['usuario_rol'] = $usuario_data['rol'];
                     $_SESSION['logged_in'] = true;
 
+                    // Redirigir según el rol
                     if ($usuario_data['rol'] === 'admin') {
                         header("Location: admin_dashboard.php");
                     } else {
@@ -46,21 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
-    if ($_SESSION['usuario_rol'] === 'admin') {
-        header("Location: admin_dashboard.php");
-    } else {
-        header("Location: articulos.php");
-    }
-    exit();
-}
 ?>
 
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Flores de Chinampa</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -70,10 +74,21 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
             min-height: 100vh;
             display: flex;
             align-items: center;
+            font-family: 'Arial', sans-serif;
         }
         .login-container {
             max-width: 400px;
             margin: 0 auto;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
         }
         .password-toggle {
             cursor: pointer;
@@ -88,12 +103,25 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
         .password-container {
             position: relative;
         }
-        .card {
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
             border: none;
-            border-radius: 15px;
+            border-radius: 8px;
+            font-weight: 600;
         }
-        .card-header {
-            border-radius: 15px 15px 0 0 !important;
+        .btn-success:hover {
+            background: linear-gradient(135deg, #218838, #1e9e8a);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .form-control {
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            padding: 12px;
+        }
+        .form-control:focus {
+            border-color: #28a745;
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
         }
     </style>
 </head>
@@ -101,8 +129,9 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
     <div class="container">
         <div class="login-container">
             <div class="card shadow-lg">
-                <div class="card-header bg-success text-white text-center">
+                <div class="card-header text-white text-center">
                     <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión</h4>
+                    <p class="mb-0 mt-2">Flores de Chinampa</p>
                 </div>
                 <div class="card-body p-4">
                     
