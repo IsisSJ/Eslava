@@ -2,39 +2,35 @@
 session_start();
 include_once('conexion.php');
 
-// DEPURACIÓN: Mostrar errores
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $usuario = trim($_POST['usuario'] ?? '');
+    $nombre_usuario = trim($_POST['nombre_usuario'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    // Validaciones básicas
-    if (empty($usuario) || empty($password)) {
+    if (empty($nombre_usuario) || empty($password)) {
         $error = "Por favor ingresa usuario y contraseña";
     } else {
         try {
-            // Buscar usuario por nombre de usuario
-            $stmt = $conn->prepare("SELECT id, usuario, email, password, rol FROM usuarios WHERE usuario = ?");
-            $stmt->execute([$usuario]);
+            // ✅ CONSULTA CORREGIDA - Usando nombre_usuario y correo
+            $stmt = $conn->prepare("SELECT id, nombre_usuario, correo, password, rol FROM usuarios WHERE nombre_usuario = ?");
+            $stmt->execute([$nombre_usuario]);
             $usuario_data = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($usuario_data) {
-                // Verificar contraseña
                 if (password_verify($password, $usuario_data['password'])) {
-                    // Login exitoso - configurar sesión
+                    // ✅ GUARDAR CORREO EN SESIÓN para los tickets
                     $_SESSION['usuario_id'] = $usuario_data['id'];
-                    $_SESSION['usuario_nombre'] = $usuario_data['usuario'];
-                    $_SESSION['usuario_email'] = $usuario_data['email']; // ← GUARDAMOS EMAIL EN SESIÓN
+                    $_SESSION['usuario_nombre'] = $usuario_data['nombre_usuario'];
+                    $_SESSION['usuario_email'] = $usuario_data['correo']; // ← CORREO no email
                     $_SESSION['usuario_rol'] = $usuario_data['rol'];
                     $_SESSION['logged_in'] = true;
 
-                    // Redirigir según el rol
                     if ($usuario_data['rol'] === 'admin') {
-                        header("Location: admin/dashboard.php");
+                        header("Location: admin_dashboard.php");
                     } else {
                         header("Location: articulos.php");
                     }
@@ -51,10 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Si ya está logueado, redirigir
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
     if ($_SESSION['usuario_rol'] === 'admin') {
-        header("Location: admin/dashboard.php");
+        header("Location: admin_dashboard.php");
     } else {
         header("Location: articulos.php");
     }
@@ -111,16 +106,14 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
                 </div>
                 <div class="card-body p-4">
                     
-                    <!-- Mostrar mensajes de éxito si viene del registro -->
                     <?php if (isset($_GET['success']) && $_GET['success'] == 'registrado'): ?>
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
                             <i class="fas fa-check-circle me-2"></i>
-                            ✅ ¡Registro exitoso! Ahora puedes iniciar sesión como <strong><?php echo htmlspecialchars($_GET['usuario'] ?? ''); ?></strong>
+                            ✅ ¡Registro exitoso! Ahora puedes iniciar sesión
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     <?php endif; ?>
 
-                    <!-- Mostrar errores -->
                     <?php if ($error): ?>
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -131,11 +124,11 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
 
                     <form method="POST" action="login.php">
                         <div class="mb-3">
-                            <label for="usuario" class="form-label">
+                            <label for="nombre_usuario" class="form-label">
                                 <i class="fas fa-user me-2"></i>Usuario
                             </label>
-                            <input type="text" class="form-control" id="usuario" name="usuario" 
-                                   value="<?php echo htmlspecialchars($_POST['usuario'] ?? $_GET['usuario'] ?? ''); ?>" 
+                            <input type="text" class="form-control" id="nombre_usuario" name="nombre_usuario" 
+                                   value="<?php echo htmlspecialchars($_POST['nombre_usuario'] ?? ''); ?>" 
                                    placeholder="Ingresa tu usuario" required>
                         </div>
                         
@@ -167,21 +160,11 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
                             <i class="fas fa-user-plus me-1"></i>¿No tienes cuenta? Regístrate aquí
                         </a>
                     </div>
-
-                    <!-- Información de roles -->
-                    <div class="mt-3 p-3 bg-light rounded">
-                        <small class="text-muted">
-                            <strong><i class="fas fa-info-circle me-1"></i>Tipos de acceso:</strong><br>
-                            • <strong>Cliente:</strong> Ver y comprar productos (recibirás ticket por email)<br>
-                            • <strong>Admin:</strong> Gestionar productos y usuarios
-                        </small>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- JavaScript para el ojito -->
     <script>
     function togglePassword(fieldId) {
         const passwordInput = document.getElementById(fieldId);
