@@ -6,7 +6,6 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 $error = '';
-$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre_usuario = trim($_POST['nombre_usuario'] ?? '');
@@ -26,22 +25,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "La contraseña debe tener al menos 6 caracteres";
     } else {
         try {
-            $check_stmt = $conn->prepare("SELECT id FROM usuarios WHERE nombre_usuario = ? OR correo = ?");
-            $check_stmt->execute([$nombre_usuario, $correo]);
-            
-            if ($check_stmt->fetch()) {
-                $error = "El nombre de usuario o correo ya está registrado";
+            // Verificar que la conexión existe
+            if (!$conn) {
+                $error = "❌ Error de conexión a la base de datos";
             } else {
-                $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                $rol = 'cliente';
+                $check_stmt = $conn->prepare("SELECT id FROM usuarios WHERE nombre_usuario = ? OR correo = ?");
+                $check_stmt->execute([$nombre_usuario, $correo]);
                 
-                $insert_stmt = $conn->prepare("INSERT INTO usuarios (nombre_usuario, correo, password, telecomercio, rol) VALUES (?, ?, ?, ?, ?)");
-                
-                if ($insert_stmt->execute([$nombre_usuario, $correo, $password_hash, $telecomercio, $rol])) {
-                    header("Location: login.php?success=registrado");
-                    exit();
+                if ($check_stmt->fetch()) {
+                    $error = "El nombre de usuario o correo ya está registrado";
                 } else {
-                    $error = "❌ Error al registrar usuario. Intenta nuevamente.";
+                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                    $rol = 'cliente';
+                    
+                    $insert_stmt = $conn->prepare("INSERT INTO usuarios (nombre_usuario, correo, password, telecomercio, rol) VALUES (?, ?, ?, ?, ?)");
+                    
+                    if ($insert_stmt->execute([$nombre_usuario, $correo, $password_hash, $telecomercio, $rol])) {
+                        header("Location: login.php?success=registrado");
+                        exit();
+                    } else {
+                        $error = "❌ Error al registrar usuario. Intenta nuevamente.";
+                    }
                 }
             }
         } catch (PDOException $e) {
@@ -55,19 +59,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro - Flores de Chinampa</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
+            font-family: 'Arial', sans-serif;
         }
         .register-container {
             max-width: 500px;
             margin: 0 auto;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
         }
         .password-toggle {
             cursor: pointer;
@@ -82,14 +98,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .password-container {
             position: relative;
         }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8, #6a4190);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .form-control {
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            padding: 12px;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .info-box {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-left: 4px solid #28a745;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="register-container">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white text-center">
+            <div class="card shadow-lg">
+                <div class="card-header text-white text-center">
                     <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Registro de Usuario</h4>
+                    <p class="mb-0 mt-2">Crea tu cuenta en Flores de Chinampa</p>
                 </div>
                 <div class="card-body p-4">
                     
@@ -97,6 +138,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <?php echo $error; ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (isset($_GET['success']) && $_GET['success'] == 'registrado'): ?>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            ✅ ¡Registro exitoso! Ahora puedes iniciar sesión
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     <?php endif; ?>
@@ -157,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                         </div>
                         
-                        <button type="submit" class="btn btn-primary w-100 py-2">
+                        <button type="submit" class="btn btn-primary w-100 py-2 mb-3">
                             <i class="fas fa-user-plus me-2"></i>Registrarse
                         </button>
                     </form>
@@ -169,12 +218,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <!-- Información de la cuenta -->
-                    <div class="mt-3 p-3 bg-light rounded">
+                    <div class="mt-4 p-3 info-box rounded">
                         <small class="text-muted">
                             <strong><i class="fas fa-info-circle me-1"></i>Información importante:</strong><br>
                             • Tu <strong>correo</strong> se usará para enviarte el ticket de compra<br>
                             • Tu <strong>nombre de usuario</strong> será para iniciar sesión<br>
-                            • Cuenta tipo: <strong>cliente</strong>
+                            • Cuenta tipo: <strong>cliente</strong> - Podrás ver y comprar productos
                         </small>
                     </div>
                 </div>
