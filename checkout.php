@@ -19,6 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("INSERT INTO pedidos (usuario_id, total, estado) VALUES (?, ?, 'pendiente')");
         $total = 0;
         
+        // En checkout.php, después de crear el pedido:
+        include_once('email_config.php');
+        notificarPedido($_SESSION['usuario_nombre'], $_SESSION['usuario_email'], $pedido_id, $total);
+
         // Calcular total
         foreach ($_SESSION['carrito'] as $producto_id => $cantidad) {
             $stmt_producto = $conn->prepare("SELECT precio FROM articulos WHERE id = ?");

@@ -40,10 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $insert_stmt = $conn->prepare("INSERT INTO usuarios (nombre_usuario, correo, password, telecomercio, rol) VALUES (?, ?, ?, ?, ?)");
                     
-                    if ($insert_stmt->execute([$nombre_usuario, $correo, $password_hash, $telecomercio, $rol])) {
-                        header("Location: login.php?success=registrado");
-                        exit();
-                    } else {
+                    // En registro.php, después del INSERT exitoso:
+                if ($insert_stmt->execute([$nombre_usuario, $correo, $password_hash, $telecomercio, $rol])) {
+                // Enviar email de bienvenida
+                    include_once('email_config.php');
+                    notificarRegistro($nombre_usuario, $correo);
+    
+                     header("Location: login.php?success=registrado");
+                    exit();
+                } else {
                         $error = "❌ Error al registrar usuario. Intenta nuevamente.";
                     }
                 }

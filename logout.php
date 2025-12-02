@@ -1,35 +1,19 @@
 <?php
+// logout.php - Versión agresiva
 session_start();
 
-// Debug: Mostrar sesión antes de destruir (opcional, quitar en producción)
-error_log("Logout attempt - Session data: " . print_r($_SESSION, true));
+// Destruir sesión completamente
+session_unset();
+session_destroy();
+session_write_close();
+setcookie(session_name(), '', 0, '/');
 
-// Limpiar todas las variables de sesión
-$_SESSION = array();
-
-// Borrar la cookie de sesión
-if (ini_get("session.use_cookies")) {
-    $params = session_get_cookie_params();
-    setcookie(
-        session_name(), 
-        '', 
-        time() - 42000,
-        $params["path"], 
-        $params["domain"], 
-        $params["secure"], 
-        $params["httponly"]
-    );
+// Eliminar todas las cookies
+foreach ($_COOKIE as $key => $value) {
+    setcookie($key, '', time() - 3600, '/');
 }
 
-// Destruir la sesión
-session_destroy();
-
-// Limpiar cache de redirección
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-// Redirigir al login con mensaje de éxito
-header("Location: login.php?success=logout");
+// Redirigir con parámetro para evitar caché
+header("Location: login.php?logout=1&nocache=" . time());
 exit();
 ?>
