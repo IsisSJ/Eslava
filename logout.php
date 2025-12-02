@@ -1,19 +1,23 @@
 <?php
-// logout.php - Versión agresiva
+// logout.php - Cerrar sesión COMPLETAMENTE
 session_start();
 
-// Destruir sesión completamente
-session_unset();
-session_destroy();
-session_write_close();
-setcookie(session_name(), '', 0, '/');
+// Destruir TODA la sesión
+$_SESSION = array();
 
-// Eliminar todas las cookies
-foreach ($_COOKIE as $key => $value) {
-    setcookie($key, '', time() - 3600, '/');
+// Si se desea destruir la cookie de sesión
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000,
+        $params["path"], $params["domain"],
+        $params["secure"], $params["httponly"]
+    );
 }
 
-// Redirigir con parámetro para evitar caché
-header("Location: login.php?logout=1&nocache=" . time());
+// Finalmente, destruir la sesión
+session_destroy();
+
+// Redirigir al login definitivo
+header("Location: login_definitivo.php?msg=logout");
 exit();
 ?>
