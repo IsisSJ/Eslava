@@ -1,10 +1,13 @@
 <?php
-// login_working.php - Login SIMPLE que FUNCIONA
-session_start();
+// login_working.php - Login CORREGIDO
+// NO usar session_start() aquí directamente
+
+// Incluir inicialización
+require_once 'init.php';
 
 // Si ya está logueado, redirigir
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    header("Location: " . ($_SESSION['usuario_rol'] === 'admin' ? 'admin.php' : 'articulos.php'));
+    header("Location: admin.php");
     exit();
 }
 
@@ -17,30 +20,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($usuario) || empty($password)) {
         $error = "Ingresa usuario y contraseña";
     } else {
-        // Incluir conexión
+        // Incluir conexión SOLO cuando se necesite
         require_once 'conexion.php';
         
         try {
-            // Buscar usuario
             $stmt = $conn->prepare("SELECT id, nombre_usuario, password, rol FROM usuarios WHERE nombre_usuario = ?");
             $stmt->execute([$usuario]);
             $user = $stmt->fetch();
             
             if ($user && password_verify($password, $user['password'])) {
-                // ÉXITO - Crear sesión
+                // Login exitoso
                 session_regenerate_id(true);
                 
                 $_SESSION['usuario_id'] = $user['id'];
                 $_SESSION['usuario_nombre'] = $user['nombre_usuario'];
                 $_SESSION['usuario_rol'] = $user['rol'];
                 $_SESSION['logged_in'] = true;
+                $_SESSION['login_time'] = time();
                 
-                // Redirigir inmediatamente
-                if ($user['rol'] === 'admin') {
-                    header("Location: admin.php");
-                } else {
-                    header("Location: articulos.php");
-                }
+                // Redirigir
+                header("Location: " . ($user['rol'] === 'admin' ? 'admin.php' : 'articulos.php'));
                 exit();
                 
             } else {
@@ -48,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
         } catch (Exception $e) {
-            $error = "Error del sistema: " . $e->getMessage();
+            $error = "Error del sistema. Intenta nuevamente.";
         }
     }
 }
@@ -75,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin: 0 auto;
             box-shadow: 0 15px 35px rgba(0,0,0,0.2);
         }
-        .btn-custom {
+        .btn-login {
             background: linear-gradient(135deg, #28a745, #20c997);
             border: none;
             padding: 12px;
@@ -90,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-card">
             <div class="text-center mb-4">
                 <h2 style="color: #28a745;">🌺 Flores de Chinampa</h2>
-                <p class="text-muted">Inicia sesión en tu cuenta</p>
+                <p class="text-muted">Inicia sesión con tus credenciales</p>
             </div>
             
             <?php if ($error): ?>
@@ -99,6 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
+            
+            <!-- IMPORTANTE: Mostrar usuario que SÍ funciona -->
+            <div class="alert alert-info">
+                <strong>Usa estas credenciales:</strong><br>
+                Usuario: <code>admin</code><br>
+                Contraseña: <code>admin123</code>
+            </div>
             
             <form method="POST" action="">
                 <div class="mb-3">
@@ -113,23 +119,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                            value="admin123" required>
                 </div>
                 
-                <button type="submit" class="btn btn-custom">
+                <button type="submit" class="btn btn-login">
                     Iniciar Sesión
                 </button>
             </form>
             
             <div class="mt-4 text-center">
-                <p class="text-muted small mb-2">
-                    <strong>Probar con:</strong><br>
-                    • admin / admin123<br>
-                    • Kioann / [resetear]<br>
-                    • admi / [resetear]
+                <p class="text-muted small">
+                    ¿Problemas para acceder?
                 </p>
-                
-                <div class="mt-3">
-                    <a href="debug_login.php" class="btn btn-sm btn-info">🔧 Debug</a>
-                    <a href="reset_password_public.php?id=1" class="btn btn-sm btn-warning">🔄 Reset Admin</a>
-                    <a href="registro.php" class="btn btn-sm btn-outline-secondary">📝 Registrarse</a>
+                <div class="d-grid gap-2">
+                    <a href="session_fix.php" class="btn btn-sm btn-warning">🔧 Reparar Sesión</a>
+                    <a href="check_sessions.php" class="btn btn-sm btn-info">🔍 Verificar Estado</a>
+                    <a href="registro.php" class="btn btn-sm btn-outline-secondary">📝 Crear Cuenta</a>
                 </div>
             </div>
         </div>
