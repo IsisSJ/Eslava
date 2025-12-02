@@ -41,9 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // SOLUCIÓN: Redirigir SOLO después de login exitoso
                     if ($usuario_data['rol'] === 'admin') {
-                        header("Location: admin_simple.php"); // Archivo temporal
+                        header("Location: admin_dashboard.php"); // cambiado a admin_dashboard.php
                     } else {
-                        header("Location: articulos_simple.php"); // Archivo temporal
+                        header("Location: articulos.php"); // cambiado a articulos.php
                     }
                     exit();
                 } else {

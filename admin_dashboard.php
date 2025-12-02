@@ -1,14 +1,31 @@
 <?php
+// admin_dashboard.php - VERSIÓN CORREGIDA
 session_start();
-include_once("conexion.php");
 
-// ✅ VERIFICACIÓN COMPLETA DE SESIÓN
-if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in'] || 
-    !isset($_SESSION['usuario_rol']) || $_SESSION['usuariorol'] !== 'admin') {
+// DEBUG: Verificar estado
+error_log("=== ADMIN DASHBOARD ===");
+error_log("Session data: " . print_r($_SESSION, true));
+
+// Verificar si está logueado
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+    error_log("No está logueado, redirigiendo a login");
     header("Location: login.php");
     exit();
 }
 
+// Verificar si es admin
+if (!isset($_SESSION['usuario_rol']) || $_SESSION['usuario_rol'] !== 'admin') {
+    error_log("No es admin, mostrando acceso denegado");
+    echo "<h1>⛔ Acceso Denegado</h1>";
+    echo "<p>No tienes permisos de administrador.</p>";
+    echo '<a href="articulos.php">Ir a Artículos</a>';
+    exit();
+}
+
+// TODO LO DEMÁS IGUAL (tu código original de admin_dashboard.php)
+include_once("conexion.php");
+
+// Si llegamos aquí, el usuario ES admin y está logueado
 $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC");
 ?>
 
@@ -20,36 +37,30 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .container {
-            margin-top: 80px;
-        }
-        .product-img {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 8px;
-        }
-        .img-placeholder {
-            width: 60px;
-            height: 60px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #6c757d;
-        }
-        .stats-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
+        .container { margin-top: 80px; }
+        .product-img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
+        .img-placeholder { width: 60px; height: 60px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #6c757d; }
+        .stats-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <?php include('header.php'); ?>
+    <?php 
+    // Header temporal simple
+    echo '<nav class="navbar navbar-expand-lg navbar-dark bg-success fixed-top">';
+    echo '<div class="container">';
+    echo '<a class="navbar-brand" href="admin_dashboard.php">';
+    echo '<i class="fas fa-leaf me-2"></i>Flores de Chinampa - Admin';
+    echo '</a>';
+    echo '<div class="navbar-nav ms-auto">';
+    echo '<span class="navbar-text me-3">';
+    echo '<i class="fas fa-user me-1"></i>';
+    echo htmlspecialchars($_SESSION['usuario_nombre'] ?? 'Admin');
+    echo '</span>';
+    echo '<a class="btn btn-outline-light btn-sm" href="logout.php">';
+    echo '<i class="fas fa-sign-out-alt me-1"></i>Salir';
+    echo '</a>';
+    echo '</div></div></nav>';
+    ?>
     
     <div class="container">
         <!-- Estadísticas rápidas -->
@@ -57,7 +68,7 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
             <div class="col-md-3">
                 <div class="stats-card text-center">
                     <h3><i class="fas fa-box"></i></h3>
-                    <h4><?php echo $articulos->num_rows; ?></h4>
+                    <h4><?php echo $articulos->rowCount(); ?></h4>
                     <p>Total Artículos</p>
                 </div>
             </div>
@@ -66,7 +77,7 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
                     <h3><i class="fas fa-check-circle"></i></h3>
                     <h4>
                         <?php 
-                        $stock_activo = $conn->query("SELECT COUNT(*) as total FROM articulos WHERE stock > 0")->fetch_assoc()['total'];
+                        $stock_activo = $conn->query("SELECT COUNT(*) as total FROM articulos WHERE stock > 0")->fetch()['total'];
                         echo $stock_activo;
                         ?>
                     </h4>
@@ -78,7 +89,7 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
                     <h3><i class="fas fa-exclamation-triangle"></i></h3>
                     <h4>
                         <?php 
-                        $sin_stock = $conn->query("SELECT COUNT(*) as total FROM articulos WHERE stock = 0")->fetch_assoc()['total'];
+                        $sin_stock = $conn->query("SELECT COUNT(*) as total FROM articulos WHERE stock = 0")->fetch()['total'];
                         echo $sin_stock;
                         ?>
                     </h4>
@@ -90,7 +101,7 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
                     <h3><i class="fas fa-users"></i></h3>
                     <h4>
                         <?php 
-                        $total_usuarios = $conn->query("SELECT COUNT(*) as total FROM usuarios")->fetch_assoc()['total'];
+                        $total_usuarios = $conn->query("SELECT COUNT(*) as total FROM usuarios")->fetch()['total'];
                         echo $total_usuarios;
                         ?>
                     </h4>
@@ -104,9 +115,6 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
             <div>
                 <a href="nuevo_articulo.php" class="btn btn-success">
                     <i class="fas fa-plus me-1"></i>Nuevo Artículo
-                </a>
-                <a href="admin_dashboard.php" class="btn btn-secondary">
-                    <i class="fas fa-sync me-1"></i>Actualizar
                 </a>
             </div>
         </div>
@@ -133,11 +141,11 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
             <div class="card-header bg-success text-white">
                 <h5 class="mb-0">
                     <i class="fas fa-list me-2"></i>
-                    Lista de Artículos (Total: <?php echo $articulos->num_rows; ?>)
+                    Lista de Artículos (Total: <?php echo $articulos->rowCount(); ?>)
                 </h5>
             </div>
             <div class="card-body">
-                <?php if ($articulos->num_rows > 0): ?>
+                <?php if ($articulos->rowCount() > 0): ?>
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead class="table-dark">
@@ -152,7 +160,7 @@ $articulos = $conn->query("SELECT * FROM articulos ORDER BY fecha_creacion DESC"
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php while($articulo = $articulos->fetch_assoc()): ?>
+                                <?php while($articulo = $articulos->fetch()): ?>
                                 <tr>
                                     <td>
                                         <?php if (!empty($articulo['imagen'])): ?>
