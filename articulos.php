@@ -1,53 +1,18 @@
 <?php
-session_start();
+// articulos.php - Catálogo con imágenes
+require_once 'config_session.php';
+
+// Verificar sesión
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header("Location: login.php");
+    header("Location: login_definitivo.php");
     exit();
 }
 
-include_once("conexion.php");
+require_once 'conexion.php';
 
-// Parámetros de búsqueda
-$busqueda = $_GET['busqueda'] ?? '';
-$categoria = $_GET['categoria'] ?? '';
-$precio_min = floatval($_GET['precio_min'] ?? 0);
-$precio_max = floatval($_GET['precio_max'] ?? 10000);
-$orden = $_GET['orden'] ?? 'nombre';
-
-// Construir consulta
-$sql = "SELECT * FROM articulos WHERE stock > 0";
-$params = [];
-
-if (!empty($busqueda)) {
-    $sql .= " AND (nombre LIKE ? OR descripcion LIKE ?)";
-    $params[] = "%$busqueda%";
-    $params[] = "%$busqueda%";
-}
-
-if ($precio_min > 0) {
-    $sql .= " AND precio >= ?";
-    $params[] = $precio_min;
-}
-
-if ($precio_max > 0 && $precio_max < 10000) {
-    $sql .= " AND precio <= ?";
-    $params[] = $precio_max;
-}
-
-// Ordenar
-$ordenes_validos = ['nombre', 'precio_asc', 'precio_desc', 'stock'];
-if (in_array($orden, $ordenes_validos)) {
-    switch ($orden) {
-        case 'precio_asc': $sql .= " ORDER BY precio ASC"; break;
-        case 'precio_desc': $sql .= " ORDER BY precio DESC"; break;
-        case 'stock': $sql .= " ORDER BY stock DESC"; break;
-        default: $sql .= " ORDER BY nombre ASC";
-    }
-}
-
-// Ejecutar consulta
-$stmt = $conn->prepare($sql);
-$stmt->execute($params);
+// Obtener artículos con stock
+$stmt = $conn->prepare("SELECT * FROM articulos WHERE stock > 0 ORDER BY nombre");
+$stmt->execute();
 $articulos = $stmt->fetchAll();
 ?>
 
@@ -55,117 +20,148 @@ $articulos = $stmt->fetchAll();
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catálogo - Flores de Chinampa</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .product-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .product-image-container {
+            height: 200px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+        }
+        .product-image {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+        .stock-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
 </head>
 <body>
-    <?php include('header.php'); ?>
+    <?php 
+    if ($_SESSION['usuario_rol'] === 'admin') {
+        include('header_admin.php');
+    } else {
+        include('header_cliente.php');
+    }
+    ?>
     
     <div class="container mt-4">
-        <h2>🌷 Nuestros Productos</h2>
-        
-        <!-- Filtros y Búsqueda -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <div class="col-md-4">
-                        <input type="text" name="busqueda" class="form-control" 
-                               placeholder="Buscar productos..." 
-                               value="<?php echo htmlspecialchars($busqueda); ?>">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <input type="number" name="precio_min" class="form-control" 
-                               placeholder="Precio mínimo" 
-                               value="<?php echo $precio_min; ?>">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <input type="number" name="precio_max" class="form-control" 
-                               placeholder="Precio máximo" 
-                               value="<?php echo $precio_max; ?>">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <select name="orden" class="form-select">
-                            <option value="nombre" <?php echo $orden == 'nombre' ? 'selected' : ''; ?>>Nombre A-Z</option>
-                            <option value="precio_asc" <?php echo $orden == 'precio_asc' ? 'selected' : ''; ?>>Precio: Menor a Mayor</option>
-                            <option value="precio_desc" <?php echo $orden == 'precio_desc' ? 'selected' : ''; ?>>Precio: Mayor a Menor</option>
-                            <option value="stock" <?php echo $orden == 'stock' ? 'selected' : ''; ?>>Más Stock</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">🔍 Buscar</button>
-                    </div>
-                </form>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-store me-2"></i>Catálogo de Productos</h1>
+            <div>
+                <?php if ($_SESSION['usuario_rol'] === 'admin'): ?>
+                    <a href="nuevo_articulo.php" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i>Nuevo Producto
+                    </a>
+                <?php endif; ?>
+                <a href="carrito.php" class="btn btn-primary">
+                    <i class="fas fa-shopping-cart me-1"></i>Ver Carrito
+                </a>
             </div>
         </div>
         
-        <!-- Resultados -->
-        <div class="row">
-            <?php if (count($articulos) > 0): ?>
+        <?php if (empty($articulos)): ?>
+            <div class="alert alert-info text-center py-5">
+                <i class="fas fa-box-open fa-3x mb-3"></i>
+                <h4>No hay productos disponibles</h4>
+                <p class="mb-0">Pronto tendremos nuevo stock de flores.</p>
+            </div>
+        <?php else: ?>
+            <div class="row">
                 <?php foreach ($articulos as $articulo): ?>
                 <div class="col-md-4 mb-4">
-                    <div class="card h-100">
+                    <div class="card product-card h-100">
                         <!-- Imagen del producto -->
-                        <div class="text-center p-3">
-                            <?php 
+                        <div class="product-image-container">
+                            <?php
                             if (!empty($articulo['imagen'])) {
                                 $base64 = base64_encode($articulo['imagen']);
                                 echo "<img src='data:image/jpeg;base64,$base64' 
-                                      class='card-img-top' 
-                                      alt='" . htmlspecialchars($articulo['nombre']) . "'
-                                      style='max-height: 200px; object-fit: contain;'>";
+                                      class='product-image'
+                                      alt='" . htmlspecialchars($articulo['nombre']) . "'>";
                             } else {
-                                echo "<div class='text-center text-muted' style='height: 200px; display: flex; align-items: center; justify-content: center;'>
+                                echo "<div class='text-center text-muted'>
                                         <i class='fas fa-image fa-4x'></i>
+                                        <p class='mt-2'>Sin imagen</p>
                                       </div>";
                             }
                             ?>
+                            
+                            <!-- Badge de stock -->
+                            <span class="stock-badge badge bg-<?php echo $articulo['stock'] > 10 ? 'success' : 'warning'; ?>">
+                                <?php echo $articulo['stock']; ?> disponibles
+                            </span>
                         </div>
                         
                         <div class="card-body">
                             <h5 class="card-title"><?php echo htmlspecialchars($articulo['nombre']); ?></h5>
-                            <p class="card-text"><?php echo htmlspecialchars($articulo['descripcion']); ?></p>
-                            <p class="h4 text-success">$<?php echo number_format($articulo['precio'], 2); ?></p>
-                            <p class="card-text">
-                                <span class="badge bg-<?php echo $articulo['stock'] > 10 ? 'success' : ($articulo['stock'] > 0 ? 'warning' : 'danger'); ?>">
-                                    Stock: <?php echo $articulo['stock']; ?> unidades
-                                </span>
+                            <p class="card-text text-muted">
+                                <?php echo strlen($articulo['descripcion']) > 100 ? 
+                                    substr($articulo['descripcion'], 0, 100) . '...' : 
+                                    $articulo['descripcion']; ?>
                             </p>
                             
-                            <!-- Formulario para agregar al carrito -->
-                            <form method="GET" action="carrito.php" class="mt-3">
-                                <input type="hidden" name="accion" value="agregar">
-                                <input type="hidden" name="id" value="<?php echo $articulo['id']; ?>">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h4 class="text-success mb-0">
+                                    $<?php echo number_format($articulo['precio'], 2); ?>
+                                </h4>
                                 
-                                <div class="input-group mb-2">
-                                    <input type="number" name="cantidad" class="form-control" 
-                                           value="1" min="1" max="<?php echo $articulo['stock']; ?>">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-cart-plus"></i> Agregar
-                                    </button>
-                                </div>
-                            </form>
+                                <?php if ($_SESSION['usuario_rol'] === 'admin'): ?>
+                                    <div class="btn-group">
+                                        <a href="subir_imagen.php?id=<?php echo $articulo['id']; ?>" 
+                                           class="btn btn-sm btn-info" title="Subir imagen">
+                                            <i class="fas fa-image"></i>
+                                        </a>
+                                        <a href="editar_articulo.php?id=<?php echo $articulo['id']; ?>" 
+                                           class="btn btn-sm btn-warning" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                <?php else: ?>
+                                    <!-- Formulario para agregar al carrito -->
+                                    <form method="GET" action="carrito.php" class="d-inline">
+                                        <input type="hidden" name="accion" value="agregar">
+                                        <input type="hidden" name="id" value="<?php echo $articulo['id']; ?>">
+                                        <div class="input-group" style="width: 150px;">
+                                            <input type="number" name="cantidad" class="form-control form-control-sm" 
+                                                   value="1" min="1" max="<?php echo $articulo['stock']; ?>">
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="fas fa-cart-plus"></i>
+                                            </button>
+                                        </div>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <?php endforeach; ?>
-            <?php else: ?>
-                <div class="col-12">
-                    <div class="alert alert-info">
-                        <h5>No se encontraron productos</h5>
-                        <p>Intenta con otros criterios de búsqueda.</p>
-                    </div>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Contador de resultados -->
-        <div class="mt-3 text-muted">
-            Mostrando <?php echo count($articulos); ?> producto(s)
-        </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <p class="text-muted">
+                    Mostrando <?php echo count($articulos); ?> producto(s)
+                </p>
+            </div>
+        <?php endif; ?>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
