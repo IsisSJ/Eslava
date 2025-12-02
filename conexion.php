@@ -1,40 +1,20 @@
 <?php
-// conexion.php - Para Clever Cloud con mejor manejo de errores
-
-// Configuración directa para Clever Cloud
-$host = 'bc8i4pda2kn2fqs150qm-mysql.services.clever-cloud.com';
-$dbname = 'bc8i4pda2kn2fqs150qm';
-$username = 'uo5qglcqiyhjhqot';
-$password = 'wSlvgtI1vH86LAydhriK';  // ⚠️ REEMPLAZA ESTO
-$port = '3306';
-
-$dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
-
-try {
-    $conn = new PDO($dsn, $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-        PDO::ATTR_TIMEOUT => 10
-    ]);
-    
-    // Verificar que la conexión es válida
-    $conn->query("SELECT 1");
-    error_log("✅ Conexión exitosa a Clever Cloud MySQL");
-    
-} catch(PDOException $e) {
-    $error_message = $e->getMessage();
-    error_log("❌ Error de conexión MySQL: " . $error_message);
-    
-    // Mensajes específicos según el error
-    if (strpos($error_message, 'Access denied') !== false) {
-        die("Error: Credenciales incorrectas. Verifica usuario y contraseña.");
-    } elseif (strpos($error_message, 'Unknown database') !== false) {
-        die("Error: La base de datos no existe.");
-    } elseif (strpos($error_message, 'Connection refused') !== false) {
-        die("Error: No se puede conectar al servidor MySQL.");
-    } else {
-        die("Error de conexión con la base de datos: " . $error_message);
+// conexion.php - Agregar función para mostrar imágenes
+function mostrarImagen($imagen_data, $alt = "Producto", $width = 100) {
+    if (!empty($imagen_data)) {
+        // Detectar tipo de imagen
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_buffer($finfo, $imagen_data);
+        finfo_close($finfo);
+        
+        $base64 = base64_encode($imagen_data);
+        return "<img src='data:$mime_type;base64,$base64' 
+                alt='$alt' 
+                style='width: {$width}px; height: auto; border-radius: 8px;'
+                class='img-thumbnail'>";
     }
+    return "<div class='text-center text-muted' style='width: {$width}px; height: {$width}px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 8px;'>
+                <i class='fas fa-image fa-2x'></i>
+            </div>";
 }
 ?>
