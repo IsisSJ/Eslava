@@ -1,4 +1,15 @@
 <?php
+// Configuración de sesiones para Render
+if (getenv('RENDER')) {
+    // En Render, usar sesiones de archivo en /tmp
+    ini_set('session.save_path', '/tmp');
+    ini_set('session.cookie_secure', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_samesite', 'Lax');
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+}
+
 // conexion.php - CONFIGURACIÓN PARA CLEVER CLOUD
 // ⚠️ ⚠️ ⚠️ IMPORTANTE: REEMPLAZA 'AQUI_LA_CONTRASEÑA_REAL' CON TU CONTRASEÑA DE CLEVER CLOUD ⚠️ ⚠️ ⚠️
 
