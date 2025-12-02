@@ -1,5 +1,5 @@
 <?php
-// login.php - VERSIÓN OPTIMIZADA PARA RENDER + CLEVER CLOUD
+// login.php - VERSIÓN CORREGIDA PARA RENDER + CLEVER CLOUD
 // =========================================================
 
 // 1. INCLUIR CONFIGURACIÓN DE SESIONES PRIMERO (ESENCIAL para Render)
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Buscar usuario en la base de datos
                 // IMPORTANTE: Asegúrate que la tabla se llama 'usuarios'
                 $stmt = $conn->prepare("
-                    SELECT id, nombre_usuario, correo, password, rol, estado 
+                    SELECT id, nombre_usuario, correo, password, rol
                     FROM usuarios 
                     WHERE nombre_usuario = ? 
                     LIMIT 1
@@ -64,12 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($usuario) {
-                    // Verificar si el usuario está activo
-                    if (isset($usuario['estado']) && $usuario['estado'] !== 'activo') {
-                        $error = "❌ Tu cuenta está desactivada. Contacta al administrador.";
-                    }
                     // Verificar contraseña
-                    elseif (password_verify($password, $usuario['password'])) {
+                    if (password_verify($password, $usuario['password'])) {
                         // ✅ LOGIN EXITOSO
                         
                         // Establecer datos de sesión
@@ -122,7 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
 ?>
 
 <!DOCTYPE html>
