@@ -1,33 +1,53 @@
 <?php
-// login.php - VERSIÓN CORREGIDA DEFINITIVA
-
-// NO redirigir automáticamente - mostrar siempre el formulario
+// login.php - VERSIÓN CON MANEJO DE ERRORES MEJORADO
 session_start();
 
-// Debug: Ver estado actual
-error_log("=== LOGIN PAGE LOADED ===");
+// Debug
+error_log("=== INICIANDO LOGIN.PHP ===");
 
 $error = '';
 $success = '';
 
+// Verificar si ya está logueado (PERO NO REDIRIGIR - solo para mostrar estado)
+$logueado = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
+
 // Procesar formulario si se envió
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    include_once('conexion.php');
+    error_log("Procesando formulario POST");
     
+    // Verificar que tenemos los datos necesarios
     $nombre_usuario = trim($_POST['nombre_usuario'] ?? '');
     $password = $_POST['password'] ?? '';
-
+    
     if (empty($nombre_usuario) || empty($password)) {
         $error = "Por favor ingresa usuario y contraseña";
+        error_log("Error: Campos vacíos");
     } else {
         try {
+            // Cargar conexión a BD
+            error_log("Intentando cargar conexion.php");
+            
+            if (!file_exists('conexion.php')) {
+                throw new Exception("Archivo de conexión no encontrado");
+            }
+            
+            include_once('conexion.php');
+            
+            // Verificar que $conn existe
+            if (!isset($conn) || !$conn) {
+                throw new Exception("Conexión a BD no disponible");
+            }
+            
+            error_log("Conexión a BD cargada, ejecutando consulta...");
+            
+            // Preparar y ejecutar consulta
             $stmt = $conn->prepare("SELECT id, nombre_usuario, correo, password, rol FROM usuarios WHERE nombre_usuario = ?");
             $stmt->execute([$nombre_usuario]);
             $usuario_data = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($usuario_data) {
                 if (password_verify($password, $usuario_data['password'])) {
-                    // LOGIN EXITOSO - Establecer sesión
+                    // LOGIN EXITOSO
                     session_regenerate_id(true);
                     
                     $_SESSION['usuario_id'] = $usuario_data['id'];
@@ -36,30 +56,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['usuario_rol'] = $usuario_data['rol'];
                     $_SESSION['logged_in'] = true;
                     $_SESSION['login_time'] = time();
-
+                    
                     error_log("✅ Login exitoso para: " . $usuario_data['nombre_usuario']);
                     
-                    // SOLUCIÓN: Redirigir SOLO después de login exitoso
+                    // Redirigir según rol
                     if ($usuario_data['rol'] === 'admin') {
-                        header("Location: admin_dashboard.php"); // cambiado a admin_dashboard.php
+                        header("Location: admin_dashboard.php");
                     } else {
-                        header("Location: articulos.php"); // cambiado a articulos.php
+                        header("Location: articulos.php");
                     }
                     exit();
                 } else {
                     $error = "❌ Contraseña incorrecta";
+                    error_log("Contraseña incorrecta para: " . $nombre_usuario);
                 }
             } else {
                 $error = "❌ Usuario no encontrado";
+                error_log("Usuario no encontrado: " . $nombre_usuario);
             }
         } catch (PDOException $e) {
             $error = "❌ Error de base de datos: " . $e->getMessage();
+            error_log("Error PDO: " . $e->getMessage());
+        } catch (Exception $e) {
+            $error = "❌ Error del sistema: " . $e->getMessage();
+            error_log("Error general: " . $e->getMessage());
         }
     }
 }
 
-// NUNCA redirigir automáticamente al cargar la página
-// Solo mostrar el formulario de login
+// NO redirigir automáticamente - siempre mostrar formulario
 ?>
 
 <!DOCTYPE html>
@@ -93,6 +118,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: bold;
             width: 100%;
         }
+        .debug-info {
+            background: rgba(0,0,0,0.05);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -100,12 +132,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-box">
             <h2 class="text-center mb-4">🌺 Flores de Chinampa</h2>
             
-            <?php if ($error): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
+            <!-- Info de debug (solo para desarrollo) -->
+            <?php if (false): // Cambiar a true para ver debug ?>
+            <div class="debug-info">
+                <strong>Debug:</strong><br>
+                Logueado: <?php echo $logueado ? 'Sí' : 'No'; ?><br>
+                Session ID: <?php echo session_id(); ?>
+            </div>
             <?php endif; ?>
             
-            <?php if (isset($_GET['logout'])): ?>
-                <div class="alert alert-info">✅ Sesión cerrada correctamente</div>
+            <?php if ($error): ?>
+                <div class="alert alert-danger">
+                    <?php echo $error; ?>
+                    <br><small>Si el problema persiste, contacta al administrador.</small>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($_GET['success']) && $_GET['success'] == 'registrado'): ?>
+                <div class="alert alert-success">
+                    ✅ ¡Registro exitoso! Ahora puedes iniciar sesión
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($_GET['success']) && $_GET['success'] == 'logout'): ?>
+                <div class="alert alert-info">
+                    ✅ Sesión cerrada correctamente
+                </div>
             <?php endif; ?>
             
             <form method="POST" action="">
@@ -130,7 +182,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <hr class="my-4">
             
             <div class="text-center">
-                <a href="reset_all.php" class="btn btn-sm btn-warning">🔄 Resetear Sistema</a>
+                <a href="test_conexion_simple.php" class="btn btn-sm btn-info">🔧 Test Conexión BD</a>
+                <a href="reset_all.php" class="btn btn-sm btn-warning">🔄 Limpiar Sesión</a>
             </div>
         </div>
     </div>
