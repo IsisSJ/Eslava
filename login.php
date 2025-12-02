@@ -48,6 +48,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($usuario_data) {
                 if (password_verify($password, $usuario_data['password'])) {
                     // LOGIN EXITOSO
+                    } else {
+                $error = "❌ Contraseña incorrecta";
+    
+                // TEMPORAL: Debug de contraseñas
+                error_log("DEBUG LOGIN:");
+                error_log("- Usuario ingresado: " . $nombre_usuario);
+                error_log("- Password ingresado: " . $password);
+                error_log("- Hash en BD: " . $usuario_data['password']);
+                error_log("- ¿Es 'chinampa123' válido?: " . (password_verify('chinampa123', $usuario_data['password']) ? 'SÍ' : 'NO'));
+                error_log("- ¿Es 'admin123' válido?: " . (password_verify('admin123', $usuario_data['password']) ? 'SÍ' : 'NO'));
+                }
                     session_regenerate_id(true);
                     
                     $_SESSION['usuario_id'] = $usuario_data['id'];
