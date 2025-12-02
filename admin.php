@@ -1,21 +1,17 @@
 <?php
-// admin.php - Dashboard admin SIMPLIFICADO
-session_start();
-
-// Si no está logueado, redirigir al login que SÍ funciona
+require_once 'config_session.php';
+// verificar sesión
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header("Location: login_working.php");
     exit();
 }
 
-// Si no es admin, mostrar error
 if ($_SESSION['usuario_rol'] !== 'admin') {
     die("<h1>⛔ Acceso Denegado</h1>
          <p>No tienes permisos de administrador.</p>
          <a href='login_working.php'>Volver al login</a>");
 }
-
-include_once("conexion.php");
+require_once 'conexion.php';
 
 // Obtener estadísticas
 $total_usuarios = $conn->query("SELECT COUNT(*) as total FROM usuarios")->fetch()['total'];

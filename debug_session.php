@@ -1,31 +1,17 @@
 <?php
-session_start();
+// debug_sesion.php
+require_once 'config_session.php';
+
+echo "<h1>🔍 DEBUG SESIONES</h1>";
+echo "<h3>Sesión ID: " . session_id() . "</h3>";
+echo "<h3>Datos de sesión:</h3>";
+echo "<pre>";
+print_r($_SESSION);
+echo "</pre>";
+
+// Probar a agregar algo
+$_SESSION['test'] = time();
+echo "<p>Valor de prueba agregado: " . $_SESSION['test'] . "</p>";
+
+echo '<a href="debug_sesion.php?reload=1">Recargar para ver si persiste</a>';
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Debug Sesión</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="container mt-5">
-    <h2>🔍 Debug de Sesión</h2>
-    <div class="card">
-        <div class="card-body">
-            <h4>Variables de Sesión:</h4>
-            <pre><?php
-            echo "usuario: " . ($_SESSION['usuario'] ?? 'NO DEFINIDO') . "\n";
-            echo "rol: " . ($_SESSION['rol'] ?? 'NO DEFINIDO') . "\n";
-            echo "user_id: " . ($_SESSION['user_id'] ?? 'NO DEFINIDO') . "\n";
-            echo "session_id: " . session_id() . "\n";
-            ?></pre>
-            
-            <h4>Probar Accesos:</h4>
-            <div class="d-flex gap-2">
-                <a href="editar_perfil.php" class="btn btn-primary">Ir a Editar Perfil</a>
-                <a href="login.php" class="btn btn-secondary">Ir a Login</a>
-                <a href="logout.php" class="btn btn-danger">Cerrar Sesión</a>
-            </div>
-        </div>
-    </div>
-</body>
-</html>

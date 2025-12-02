@@ -1,5 +1,7 @@
 <?php
-session_start();
+require_once 'config_session.php';
+include_once 'config_session.php';
+
 include_once("conexion.php");
 
 // CONFIGURACIÓN PARA INFINITYFREE - TU DOMINIO NUEVO

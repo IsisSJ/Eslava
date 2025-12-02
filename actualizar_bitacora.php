@@ -1,6 +1,7 @@
 <?php
 include("conexion.php");
-session_start();
+require_once 'config_session.php';
+include_once 'config_session.php';
 
 // Validar que solo admin pueda entrar
 if (!isset($_SESSION["rol"]) || $_SESSION["rol"] !== "admin") {

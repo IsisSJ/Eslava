@@ -1,6 +1,6 @@
 <?php
 // debug_login.php - Debug completo del login
-session_start();
+
 include_once('conexion.php');
 
 echo "<h1>🔍 DEBUG COMPLETO DEL LOGIN</h1>";

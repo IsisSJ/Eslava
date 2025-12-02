@@ -1,6 +1,6 @@
 <?php
-// admin_dashboard.php - VERSIÓN CORREGIDA
-session_start();
+require_once 'config_session.php';
+include_once 'config_session.php';
 
 // DEBUG: Verificar estado
 error_log("=== ADMIN DASHBOARD ===");

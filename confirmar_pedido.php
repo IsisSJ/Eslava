@@ -1,6 +1,7 @@
 <?php
-// confirmar_pedido.php - VERSIÓN COMPLETAMENTE CORREGIDA
-session_start();
+require_once 'config_session.php';
+include_once 'config_session.php';
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 

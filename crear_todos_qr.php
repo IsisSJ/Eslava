@@ -1,5 +1,5 @@
 <?php
-session_start();
+include_once 'config_session.php';
 include_once("conexion.php");
 
 if (!isset($_SESSION['usuario']) || $_SESSION['rol'] !== 'admin') {

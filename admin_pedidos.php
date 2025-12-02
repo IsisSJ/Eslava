@@ -1,6 +1,6 @@
 <?php
-// admin_dashboard.php - VERSIÓN TEMPORAL SIN VERIFICACIONES ESTRICTAS
-session_start();
+require_once 'config_session.php';
+include_once 'config_session.php';
 
 // TEMPORAL: Aceptar cualquier sesión para debug
 if (!isset($_SESSION['logged_in'])) {

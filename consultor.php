@@ -1,5 +1,7 @@
 <?php
-session_start();
+require_once 'config_session.php';
+include_once 'config_session.php';
+
 if (!isset($_SESSION["rol"]) || $_SESSION["rol"] !== "consultor") {
     header("Location: index.php");
     exit();
