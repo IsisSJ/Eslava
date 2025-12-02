@@ -1,101 +1,74 @@
 <?php
-// login.php - VERSIÓN CON MANEJO DE ERRORES MEJORADO
+// login.php - VERSIÓN COMPLETAMENTE CORREGIDA
 session_start();
 
-// Debug
-error_log("=== INICIANDO LOGIN.PHP ===");
-
+// Inicializar variables
 $error = '';
-$success = '';
+$logueado = false;
 
-// Verificar si ya está logueado (PERO NO REDIRIGIR - solo para mostrar estado)
-$logueado = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
+// Verificar si ya está logueado
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    $logueado = true;
+}
 
 // Procesar formulario si se envió
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    error_log("Procesando formulario POST");
-    
-    // Verificar que tenemos los datos necesarios
     $nombre_usuario = trim($_POST['nombre_usuario'] ?? '');
     $password = $_POST['password'] ?? '';
-    
+
     if (empty($nombre_usuario) || empty($password)) {
         $error = "Por favor ingresa usuario y contraseña";
-        error_log("Error: Campos vacíos");
     } else {
-        try {
-            // Cargar conexión a BD
-            error_log("Intentando cargar conexion.php");
-            
-            if (!file_exists('conexion.php')) {
-                throw new Exception("Archivo de conexión no encontrado");
-            }
-            
+        // Incluir conexión a BD
+        if (file_exists('conexion.php')) {
             include_once('conexion.php');
             
             // Verificar que $conn existe
-            if (!isset($conn) || !$conn) {
-                throw new Exception("Conexión a BD no disponible");
-            }
-            
-            error_log("Conexión a BD cargada, ejecutando consulta...");
-            
-            // Preparar y ejecutar consulta
-            $stmt = $conn->prepare("SELECT id, nombre_usuario, correo, password, rol FROM usuarios WHERE nombre_usuario = ?");
-            $stmt->execute([$nombre_usuario]);
-            $usuario_data = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($usuario_data) {
-                if (password_verify($password, $usuario_data['password'])) {
-                    // LOGIN EXITOSO
+            if (isset($conn) && $conn) {
+                try {
+                    // Buscar usuario en BD
+                    $stmt = $conn->prepare("SELECT id, nombre_usuario, correo, password, rol FROM usuarios WHERE nombre_usuario = ?");
+                    $stmt->execute([$nombre_usuario]);
+                    $usuario_data = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($usuario_data) {
+                        // Verificar contraseña
+                        if (password_verify($password, $usuario_data['password'])) {
+                            // Login exitoso
+                            session_regenerate_id(true);
+                            
+                            $_SESSION['usuario_id'] = $usuario_data['id'];
+                            $_SESSION['usuario_nombre'] = $usuario_data['nombre_usuario'];
+                            $_SESSION['usuario_email'] = $usuario_data['correo'];
+                            $_SESSION['usuario_rol'] = $usuario_data['rol'];
+                            $_SESSION['logged_in'] = true;
+                            $_SESSION['login_time'] = time();
+                            
+                            // Redirigir según rol
+                            if ($usuario_data['rol'] === 'admin') {
+                                header("Location: admin_dashboard.php");
+                            } else {
+                                header("Location: articulos.php");
+                            }
+                            exit();
+                        } else {
+                            $error = "❌ Contraseña incorrecta";
+                        }
                     } else {
-                $error = "❌ Contraseña incorrecta";
-    
-                // TEMPORAL: Debug de contraseñas
-                error_log("DEBUG LOGIN:");
-                error_log("- Usuario ingresado: " . $nombre_usuario);
-                error_log("- Password ingresado: " . $password);
-                error_log("- Hash en BD: " . $usuario_data['password']);
-                error_log("- ¿Es 'chinampa123' válido?: " . (password_verify('chinampa123', $usuario_data['password']) ? 'SÍ' : 'NO'));
-                error_log("- ¿Es 'admin123' válido?: " . (password_verify('admin123', $usuario_data['password']) ? 'SÍ' : 'NO'));
-                }
-                    session_regenerate_id(true);
-                    
-                    $_SESSION['usuario_id'] = $usuario_data['id'];
-                    $_SESSION['usuario_nombre'] = $usuario_data['nombre_usuario'];
-                    $_SESSION['usuario_email'] = $usuario_data['correo'];
-                    $_SESSION['usuario_rol'] = $usuario_data['rol'];
-                    $_SESSION['logged_in'] = true;
-                    $_SESSION['login_time'] = time();
-                    
-                    error_log("✅ Login exitoso para: " . $usuario_data['nombre_usuario']);
-                    
-                    // Redirigir según rol
-                    if ($usuario_data['rol'] === 'admin') {
-                        header("Location: admin_dashboard.php");
-                    } else {
-                        header("Location: articulos.php");
+                        $error = "❌ Usuario no encontrado";
                     }
-                    exit();
-                } else {
-                    $error = "❌ Contraseña incorrecta";
-                    error_log("Contraseña incorrecta para: " . $nombre_usuario);
+                } catch (PDOException $e) {
+                    $error = "❌ Error de base de datos";
                 }
             } else {
-                $error = "❌ Usuario no encontrado";
-                error_log("Usuario no encontrado: " . $nombre_usuario);
+                $error = "❌ Error de conexión con la base de datos";
             }
-        } catch (PDOException $e) {
-            $error = "❌ Error de base de datos: " . $e->getMessage();
-            error_log("Error PDO: " . $e->getMessage());
-        } catch (Exception $e) {
-            $error = "❌ Error del sistema: " . $e->getMessage();
-            error_log("Error general: " . $e->getMessage());
+        } else {
+            $error = "❌ Error del sistema: Archivo de conexión no encontrado";
         }
     }
 }
-
-// NO redirigir automáticamente - siempre mostrar formulario
+// Fin del procesamiento PHP - ahora viene el HTML
 ?>
 
 <!DOCTYPE html>
@@ -144,11 +117,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <h2 class="text-center mb-4">🌺 Flores de Chinampa</h2>
             
             <!-- Info de debug (solo para desarrollo) -->
-            <?php if (false): // Cambiar a true para ver debug ?>
+            <?php if ($logueado && false): // Cambiar a true para ver debug ?>
             <div class="debug-info">
                 <strong>Debug:</strong><br>
-                Logueado: <?php echo $logueado ? 'Sí' : 'No'; ?><br>
-                Session ID: <?php echo session_id(); ?>
+                Ya estás logueado como: <?php echo $_SESSION['usuario_nombre'] ?? 'N/A'; ?>
             </div>
             <?php endif; ?>
             
@@ -193,8 +165,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <hr class="my-4">
             
             <div class="text-center">
-                <a href="test_conexion_simple.php" class="btn btn-sm btn-info">🔧 Test Conexión BD</a>
-                <a href="reset_all.php" class="btn btn-sm btn-warning">🔄 Limpiar Sesión</a>
+                <p class="text-muted small mb-2">
+                    Si tienes problemas para acceder:
+                </p>
+                <a href="list_users.php" class="btn btn-sm btn-primary">👥 Ver usuarios</a>
+                <a href="reset_user_password.php?id=1" class="btn btn-sm btn-warning">🔄 Resetear admin</a>
             </div>
         </div>
     </div>
